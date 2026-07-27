@@ -1,0 +1,49 @@
+# --- Web framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# --- Settings / validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.1
+email-validator==2.2.0
+
+# --- Database ---
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+
+# --- Auth ---
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+# Pinned <4.1: passlib 1.7.4 reads bcrypt.__about__.__version__, removed in bcrypt 4.1+.
+bcrypt==4.0.1
+
+# --- Task queue ---
+celery==5.4.0
+redis==5.2.1
+
+# --- Ingestion (static HTML via requests+bs4; see requirements-heavy.txt for
+# the Playwright JS-rendering fallback, not required by the current scrapers) ---
+requests==2.32.3
+beautifulsoup4==4.12.3
+feedparser==6.0.11
+
+# --- NLP: see requirements-heavy.txt (spaCy/transformers/torch — installed separately) ---
+
+# --- ML (per 01_TECHNICAL_ARCHITECTURE.md §3: scikit-learn, XGBoost / LightGBM only) ---
+# scikit-learn pinned <1.6: xgboost==2.1.3's sklearn wrapper predates sklearn 1.6's
+# __sklearn_tags__ API rework and raises AttributeError under GridSearchCV with it.
+scikit-learn==1.5.2
+xgboost==2.1.3
+lightgbm==4.5.0
+pandas==2.2.3
+numpy==2.2.1
+joblib==1.4.2
+
+# --- Testing / lint ---
+pytest==8.3.4
+pytest-cov==6.0.0
+httpx==0.28.1
+ruff==0.8.4
+black==24.10.0

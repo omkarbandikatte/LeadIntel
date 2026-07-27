@@ -1,0 +1,19 @@
+# Heavy deps split out of requirements.txt so the API/DB/scoring/ML-training
+# path can be installed and verified quickly on slow connections. Install with:
+#   pip install -r requirements-heavy.txt
+# after requirements.txt.
+#
+# - spacy/transformers/torch: app/services/nlp/* imports these lazily, so the
+#   rest of the app runs without them present. Needed for real NLP inference.
+# - playwright: part of the approved scraping stack (01_TECHNICAL_ARCHITECTURE.md
+#   §3) for JS-rendered company sites that a plain GET can't see. The current
+#   scrapers (app/services/ingestion/*) use requests+BeautifulSoup against
+#   static HTML, which covers most About/careers pages without this — add a
+#   Playwright-backed fetch_text() fallback in http_client.py if a target site
+#   turns out to need JS rendering. Installing this package alone is not
+#   sufficient to use it — `playwright install chromium` must also be run to
+#   fetch the browser binary.
+spacy==3.8.2
+transformers==4.47.1
+torch==2.5.1
+playwright==1.49.1

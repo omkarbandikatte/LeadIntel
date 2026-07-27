@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+backend/venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Env
+.env
+*.env.local
+
+# ML artifacts
+ml/artifacts/*
+!ml/artifacts/.gitkeep
+
+# CRM sync working files
+data/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+frontend/tsconfig.tsbuildinfo
+
+# Celery runtime
+backend/celerybeat-schedule.db
+
+# Claude Code local state
+.claude/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
