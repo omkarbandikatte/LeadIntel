@@ -5,7 +5,7 @@ from app.api.deps import require_admin
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse
+from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest, UserResponse, UserListResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -57,3 +57,9 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get("/users", response_model=UserListResponse, dependencies=[Depends(require_admin)])
+def list_users(db: Session = Depends(get_db)) -> UserListResponse:
+    users = db.query(User).order_by(User.role, User.email).all()
+    return UserListResponse(total=len(users), results=users)

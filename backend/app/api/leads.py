@@ -143,6 +143,7 @@ def get_lead_explanation(
             if lead_score.recommendation_confidence is not None
             else None
         ),
+        service_probabilities=lead_score.service_probabilities,
         model_version=lead_score.model_version,
     )
 

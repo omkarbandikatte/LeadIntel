@@ -71,6 +71,7 @@ def score_company(db: Session, company: Company) -> tuple[ScoringResult, str]:
         recommended_service=rules_result.recommended_service,
         recommendation_confidence=rules_result.recommendation_confidence,
         top_factors=rules_result.top_factors,
+        service_probabilities=rules_result.service_probabilities,
     )
     return ml_result, artifact["model_version"]
 

@@ -31,3 +31,8 @@ class UserResponse(BaseModel):
     is_active: bool
 
     model_config = {"from_attributes": True}
+
+
+class UserListResponse(BaseModel):
+    total: int
+    results: list[UserResponse]

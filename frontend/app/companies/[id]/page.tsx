@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { NavBar } from "@/components/NavBar";
+import { AppShell } from "@/components/AppShell";
+import { BackButton } from "@/components/BackButton";
+import { Skeleton } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
 import {
   ApiError,
@@ -16,6 +18,17 @@ import {
   type LeadExplanation,
   type RawDocument,
 } from "@/lib/api-client";
+
+const SERVICE_LABELS: Record<string, string> = {
+  branding: "Employer Branding",
+  hiring: "Recruitment & Hiring",
+  learning_development: "Learning & Development",
+  iac_partnership: "Industry-Academia Partnership",
+};
+
+function serviceLabel(key: string): string {
+  return SERVICE_LABELS[key] ?? key.replace(/_/g, " ");
+}
 
 const STATUS_COLOR: Record<string, string> = {
   enriched: "var(--status-good)",
@@ -73,22 +86,45 @@ function CompanyDetailContent() {
 
   if (isLoading || !company) {
     return (
-      <div>
-        <NavBar />
-        <main className="mx-auto max-w-4xl px-6 py-8" style={{ color: "var(--text-secondary)" }}>
-          Loading company…
+      <AppShell>
+        <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+          <BackButton />
+          {/* Header skeleton */}
+          <div className="mb-6 flex items-start justify-between">
+            <div className="flex-1">
+              <Skeleton className="mb-2 h-7 w-52" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+          {/* Score card skeleton */}
+          <div className="mb-6 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+            <Skeleton className="mb-4 h-3.5 w-32" />
+            <div className="grid grid-cols-3 gap-4">
+              <Skeleton className="h-14" />
+              <Skeleton className="h-14" />
+              <Skeleton className="h-14" />
+            </div>
+          </div>
+          {/* Documents skeleton */}
+          <div className="rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+            <Skeleton className="mb-4 h-3.5 w-40" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}
+            </div>
+          </div>
         </main>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div>
-      <NavBar />
-      <main className="mx-auto max-w-4xl px-6 py-8">
+    <AppShell>
+      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+        <BackButton />
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">{company.name}</h1>
+            <h1 className="text-xl font-semibold sm:text-2xl">{company.name}</h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               {[company.industry, company.location_city, company.location_country].filter(Boolean).join(" · ")}
             </p>
@@ -144,11 +180,45 @@ function CompanyDetailContent() {
 
               {explanation.recommended_service && (
                 <p className="mb-4 text-sm">
-                  Recommended: <span className="font-medium capitalize">{explanation.recommended_service.replace("_", " ")}</span>{" "}
+                  Recommended: <span className="font-medium">{serviceLabel(explanation.recommended_service)}</span>{" "}
                   <span style={{ color: "var(--text-muted)" }}>
                     ({Math.round((explanation.recommendation_confidence ?? 0) * 100)}% confidence)
                   </span>
                 </p>
+              )}
+
+              {explanation.service_probabilities && Object.keys(explanation.service_probabilities).length > 0 && (
+                <div className="mb-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                    Service requirement probabilities
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(explanation.service_probabilities)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([service, probability]) => (
+                        <div
+                          key={service}
+                          className="flex items-center justify-between rounded-md px-3 py-2 text-sm"
+                          style={{ backgroundColor: "var(--gridline)" }}
+                        >
+                          <span>{serviceLabel(service)}</span>
+                          <span
+                            className="font-semibold"
+                            style={{
+                              color:
+                                probability >= 50
+                                  ? "var(--status-good)"
+                                  : probability >= 25
+                                  ? "var(--series-1)"
+                                  : "var(--text-secondary)",
+                            }}
+                          >
+                            {probability.toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
               )}
 
               <ul className="mb-4 space-y-1.5 text-sm">
@@ -220,7 +290,7 @@ function CompanyDetailContent() {
           )}
         </section>
       </main>
-    </div>
+    </AppShell>
   );
 }
 

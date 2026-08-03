@@ -9,7 +9,7 @@ export function LineChart({
   data,
   valueFormat = (value: number) => value.toString(),
   color = "var(--series-1)",
-  height = 220,
+  height = 160,
 }: {
   data: LineDatum[];
   valueFormat?: (value: number) => string;
@@ -24,48 +24,93 @@ export function LineChart({
     );
   }
 
-  const maxValue = Math.max(...data.map((d) => d.value), 0.0001);
-  const minValue = Math.min(...data.map((d) => d.value), 0);
-  const range = maxValue - minValue || 1;
-  const stepX = data.length > 1 ? 100 / (data.length - 1) : 0;
-  const plotHeight = height - 48;
+  const svgH = height - 42; // SVG canvas height; remaining px for labels
+  const W = 1000; // internal SVG width coordinate space
+  const PAD = 16;
 
-  const points = data.map((datum, index) => {
-    const x = data.length > 1 ? index * stepX : 50;
-    const y = 12 + plotHeight - ((datum.value - minValue) / range) * plotHeight;
-    return { x, y, datum };
-  });
+  const maxV = Math.max(...data.map((d) => d.value), 0.0001);
+  const minV = Math.min(...data.map((d) => d.value), 0);
+  const range = maxV - minV || 1;
+  const plotH = svgH - 24; // inner plot height (top/bottom padding)
 
-  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const pts = data.map((d, i) => ({
+    x: data.length > 1 ? PAD + (i / (data.length - 1)) * (W - PAD * 2) : W / 2,
+    y: 14 + plotH - ((d.value - minV) / range) * plotH,
+    d,
+  }));
+
+  const path = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+
+  // Area fill under the line
+  const areaPath =
+    path +
+    ` L ${pts[pts.length - 1].x.toFixed(1)} ${(14 + plotH).toFixed(1)}` +
+    ` L ${pts[0].x.toFixed(1)} ${(14 + plotH).toFixed(1)} Z`;
+
+  const manyPoints = data.length > 8;
+  const labelFontSize = manyPoints ? "9px" : "11px";
 
   return (
-    <svg viewBox={`0 0 100 ${height}`} className="w-full" preserveAspectRatio="none" role="img">
-      {[0.25, 0.5, 0.75, 1].map((fraction) => (
-        <line
-          key={fraction}
-          x1={0}
-          x2={100}
-          y1={12 + plotHeight - fraction * plotHeight}
-          y2={12 + plotHeight - fraction * plotHeight}
-          stroke="var(--gridline)"
-          strokeWidth={0.3}
+    <div className="w-full select-none">
+      {/* SVG: line, area fill, dots only — no text (text is HTML below) */}
+      <svg
+        viewBox={`0 0 ${W} ${svgH}`}
+        preserveAspectRatio="none"
+        style={{ width: "100%", height: `${svgH}px`, display: "block", overflow: "visible" }}
+        aria-hidden
+      >
+        {/* Gridlines */}
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <line
+            key={f}
+            x1={0}
+            x2={W}
+            y1={14 + plotH - f * plotH}
+            y2={14 + plotH - f * plotH}
+            stroke="var(--gridline)"
+            strokeWidth={1.5}
+          />
+        ))}
+        {/* Area fill */}
+        <path d={areaPath} fill={color} fillOpacity={0.08} />
+        {/* Line */}
+        <path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
-      ))}
-      <line x1={0} x2={100} y1={12 + plotHeight} y2={12 + plotHeight} stroke="var(--baseline)" strokeWidth={0.5} />
-
-      <path d={path} fill="none" stroke={color} strokeWidth={0.8} strokeLinecap="round" strokeLinejoin="round" />
-
-      {points.map(({ x, y, datum }) => (
-        <g key={datum.label}>
-          <title>
-            {datum.label}: {valueFormat(datum.value)}
-          </title>
-          <circle cx={x} cy={y} r={1.4} fill={color} />
-          <text x={x} y={height - 4} textAnchor="middle" fontSize={4} fill="var(--text-muted)">
-            {datum.label}
-          </text>
-        </g>
-      ))}
-    </svg>
+        {/* Dots */}
+        {pts.map(({ x, y, d }) => (
+          <circle key={d.label} cx={x} cy={y} r={4} fill={color} />
+        ))}
+      </svg>
+      {/* Baseline */}
+      <div className="h-px w-full" style={{ backgroundColor: "var(--baseline)" }} />
+      {/* Value + X-axis labels — pure HTML, no distortion */}
+      <div className="relative mt-1.5 flex">
+        {pts.map(({ d }) => (
+          <div
+            key={d.label}
+            className="flex flex-1 flex-col items-center gap-0.5"
+          >
+            <span
+              className="font-medium tabular-nums"
+              style={{ fontSize: labelFontSize, color: "var(--text-secondary)", lineHeight: 1 }}
+            >
+              {valueFormat(d.value)}
+            </span>
+            <span
+              style={{ fontSize: labelFontSize, color: "var(--text-muted)", lineHeight: 1 }}
+            >
+              {d.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
+

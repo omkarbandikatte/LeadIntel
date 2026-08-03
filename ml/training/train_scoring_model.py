@@ -17,10 +17,17 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import warnings
+
 import joblib
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+
+# scipy ≥1.11 dropped the internal `iprint` kwarg that sklearn's lbfgs wrapper
+# passes to optimize.minimize — the OptimizeWarning is cosmetic (lbfgs still
+# converges correctly), so we suppress it here rather than swapping solvers.
+warnings.filterwarnings("ignore", message="Unknown solver options: iprint")
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_split
 from xgboost import XGBClassifier
@@ -41,29 +48,35 @@ RANDOM_STATE = 42
 
 
 def load_training_data() -> pd.DataFrame:
-    """Build one training row per company with a closed (won/lost) CRM deal.
+    """Build one training row per closed CRM deal.
 
-    Uses the same feature pipeline (rules_engine + features.build_feature_vector)
-    that ml_scorer.py uses at inference time, so training and serving stay
-    consistent.
+    Each deal is an independent training example. Multiple deals per company
+    are included — the feature vector reflects the company's attributes at
+    scoring time, so the model learns which company profiles have higher win
+    rates across all historical deals, not just the first deal per company.
+    With the Kaggle dataset this yields ~6,700 rows vs 85 from de-duplication.
     """
     db = SessionLocal()
     try:
         closed_deals = db.query(CRMDeal).filter(CRMDeal.outcome.in_(["won", "lost"])).all()
 
         rows: list[dict] = []
-        seen_companies: set = set()
+        # Cache feature vectors per company_id — company attributes don't
+        # change between deals so we avoid recomputing for every deal.
+        feature_cache: dict = {}
         for deal in closed_deals:
-            if deal.company_id is None or deal.company_id in seen_companies:
+            if deal.company_id is None:
                 continue
-            seen_companies.add(deal.company_id)
 
             company = deal.company
             if company is None:
                 continue
 
-            rules_result = score_company(db, company)
-            feature_vector = build_feature_vector(db, company, rules_result)
+            if deal.company_id not in feature_cache:
+                rules_result = score_company(db, company)
+                feature_cache[deal.company_id] = build_feature_vector(db, company, rules_result)
+
+            feature_vector = dict(feature_cache[deal.company_id])
             feature_vector["label"] = 1 if deal.outcome == "won" else 0
             rows.append(feature_vector)
 
@@ -101,9 +114,15 @@ def train() -> dict:
 
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
 
+    # Class imbalance: won deals are typically far fewer than lost.
+    # LogisticRegression uses class_weight='balanced'; XGBoost uses scale_pos_weight.
+    neg_count = int((y_train == 0).sum())
+    pos_count = int((y_train == 1).sum())
+    scale_pos_weight = neg_count / pos_count if pos_count > 0 else 1.0
+
     # --- Logistic regression baseline ---
     logistic_search = GridSearchCV(
-        LogisticRegression(max_iter=1000, random_state=RANDOM_STATE),
+        LogisticRegression(max_iter=1000, random_state=RANDOM_STATE, class_weight="balanced"),
         param_grid={"C": [0.01, 0.1, 1.0, 10.0]},
         scoring="roc_auc",
         cv=cv,
@@ -116,6 +135,7 @@ def train() -> dict:
         XGBClassifier(
             eval_metric="logloss",
             random_state=RANDOM_STATE,
+            scale_pos_weight=scale_pos_weight,
         ),
         param_grid={
             "n_estimators": [100, 200],

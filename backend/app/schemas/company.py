@@ -58,6 +58,13 @@ class EnrichTriggerResponse(BaseModel):
     message: str = "Enrichment queued"
 
 
+class CompanyListResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    results: list[CompanyResponse]
+
+
 class RawDocumentResponse(BaseModel):
     id: uuid.UUID
     doc_type: str

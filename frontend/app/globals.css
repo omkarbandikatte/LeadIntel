@@ -15,6 +15,13 @@
   --series-1: #2a78d6;
   --status-good: #0ca30c;
   --status-critical: #d03b3b;
+  /* rgb splits for rgba() usage */
+  --page-plane-rgb: 249, 249, 247;
+  --surface-1-rgb: 252, 252, 251;
+  /* landing-page overlays */
+  --hero-overlay: linear-gradient(to bottom, rgba(249,249,247,0.92) 0%, rgba(249,249,247,0.72) 55%, rgba(249,249,247,0.96) 100%);
+  --accent-l: #7c3aed;
+  --accent-2: #d97706;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -31,6 +38,11 @@
     --series-1: #3987e5;
     --status-good: #0ca30c;
     --status-critical: #e66767;
+    --page-plane-rgb: 13, 13, 13;
+    --surface-1-rgb: 26, 26, 25;
+    --hero-overlay: linear-gradient(to bottom, rgba(13,13,13,0.88) 0%, rgba(13,13,13,0.68) 55%, rgba(13,13,13,0.94) 100%);
+    --accent-l: #a78bfa;
+    --accent-2: #fbbf24;
   }
 }
 
@@ -47,9 +59,86 @@
   --series-1: #3987e5;
   --status-good: #0ca30c;
   --status-critical: #e66767;
+  --page-plane-rgb: 13, 13, 13;
+  --surface-1-rgb: 26, 26, 25;
+  --hero-overlay: linear-gradient(to bottom, rgba(13,13,13,0.88) 0%, rgba(13,13,13,0.68) 55%, rgba(13,13,13,0.94) 100%);
+  --accent-l: #a78bfa;
+  --accent-2: #fbbf24;
 }
 
 body {
   background-color: var(--page-plane);
   color: var(--text-primary);
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reusable animation utility classes ─────────────────────────── */
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease both;
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.4s ease both;
+}
+
+/* Staggered delay helpers */
+.delay-75  { animation-delay:  75ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+
+/* Skeleton shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--gridline);
+  border-radius: 4px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.12) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.4s infinite;
 }

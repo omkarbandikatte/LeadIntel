@@ -17,7 +17,7 @@ export function ProtectedRoute({
   useEffect(() => {
     if (isLoading) return;
     if (!token) {
-      router.replace("/login");
+      router.replace("/");
       return;
     }
     if (allowedRoles && role && !allowedRoles.includes(role)) {

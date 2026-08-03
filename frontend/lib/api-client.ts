@@ -173,6 +173,7 @@ export interface LeadExplanation {
   top_factors: TopFactor[];
   recommended_service: string | null;
   recommendation_confidence: number | null;
+  service_probabilities: Record<string, number> | null;
   model_version: string | null;
 }
 
@@ -211,10 +212,137 @@ export function getTeamAnalytics(token: string): Promise<TeamAnalytics> {
   return request<TeamAnalytics>("/api/analytics/team", { token });
 }
 
+// ---- Extended Analytics ----
+
+export interface ExtendedAnalytics {
+  total_leads_scored: number;
+  avg_conversion_probability: number;
+  enrichment_breakdown: { pending: number; enriched: number; failed: number };
+  service_performance: {
+    service: string;
+    recommended_count: number;
+    won_count: number;
+    lost_count: number;
+  }[];
+  industry_performance: { industry: string; count: number; win_rate: number }[];
+  deal_pipeline: { open: number; won: number; lost: number; total_deal_value: number };
+  score_distribution: { bucket: string; count: number }[];
+  feedback_summary: { accurate: number; inaccurate: number };
+  scoring_activity_14d: { date: string; count: number }[];
+  score_band_performance: ScoreBandPerformance[];
+  model_accuracy_trend: ModelAccuracyPoint[];
+}
+
+export function getExtendedAnalytics(token: string): Promise<ExtendedAnalytics> {
+  return request<ExtendedAnalytics>("/api/analytics/extended", { token });
+}
+
 // ---- CRM sync ----
 
-export function triggerCrmSync(token: string, direction: "push" | "pull") {
-  return request("/api/crm/sync", { method: "POST", token, body: { direction } });
+export interface CrmSyncResponse {
+  direction: "push" | "pull";
+  record_count: number;
+  status: string;
+  error_detail: string | null;
+}
+
+export function triggerCrmSync(token: string, direction: "push" | "pull"): Promise<CrmSyncResponse> {
+  return request<CrmSyncResponse>("/api/crm/sync", { method: "POST", token, body: { direction } });
+}
+
+// ---- Bulk upload ----
+
+export interface BulkUploadRowError {
+  row: number;
+  reason: string;
+}
+
+export interface BulkUploadResponse {
+  accepted: number;
+  rejected: number;
+  errors: BulkUploadRowError[];
+}
+
+export async function bulkUploadCompanies(token: string, file: File): Promise<BulkUploadResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/companies/bulk-upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let code = "UNKNOWN_ERROR";
+    let message = response.statusText;
+    try {
+      const payload = await response.json();
+      code = payload?.error?.code ?? code;
+      message = payload?.error?.message ?? message;
+    } catch { /* no-op */ }
+    throw new ApiError(response.status, code, message);
+  }
+
+  return response.json() as Promise<BulkUploadResponse>;
+}
+
+// ---- Companies list ----
+
+export interface CompanyListResponse {
+  total: number;
+  page: number;
+  page_size: number;
+  results: Company[];
+}
+
+export function listCompanies(
+  token: string,
+  params: { page?: number; page_size?: number; search?: string } = {}
+): Promise<CompanyListResponse> {
+  return request<CompanyListResponse>("/api/companies", {
+    token,
+    query: params as Record<string, string | number | undefined>,
+  });
+}
+
+// ---- Users (admin) ----
+
+export interface UserItem {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  is_active: boolean;
+}
+
+export interface UserListResponse {
+  total: number;
+  results: UserItem[];
+}
+
+export function listUsers(token: string): Promise<UserListResponse> {
+  return request<UserListResponse>("/api/auth/users", { token });
+}
+
+export function createUser(
+  token: string,
+  payload: { email: string; full_name: string; password: string; role: string }
+): Promise<UserItem> {
+  return request<UserItem>("/api/auth/register", { method: "POST", token, body: payload });
+}
+
+// ---- Scoring (admin) ----
+
+export interface ScoringRunResponse {
+  mode: string;
+  task_id: string;
+  model_version: string;
+  queued_at: string;
+}
+
+export function triggerScoring(token: string, mode: "full" | "incremental"): Promise<ScoringRunResponse> {
+  return request<ScoringRunResponse>("/api/scoring/run", { method: "POST", token, body: { mode } });
 }
 
 // ---- Scoring ----

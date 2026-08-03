@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(ROLE_KEY);
     setToken(null);
     setRole(null);
-    router.push("/login");
+    router.push("/");
   }
 
   return (

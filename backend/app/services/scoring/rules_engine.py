@@ -67,6 +67,7 @@ class ScoringResult:
     recommended_service: str | None
     recommendation_confidence: float | None
     top_factors: list[ScoreFactor]
+    service_probabilities: dict[str, float]
 
 
 def _industry_score(industry: str | None) -> tuple[float, ScoreFactor | None]:
@@ -111,7 +112,9 @@ def _fit_score(company: Company) -> tuple[float, list[ScoreFactor]]:
     return round(fit, 2), factors
 
 
-def _intent_score(db: Session, company: Company) -> tuple[float, list[ScoreFactor]]:
+def _intent_score(
+    db: Session, company: Company, nlp_features: list
+) -> tuple[float, list[ScoreFactor]]:
     now = datetime.now(UTC)
     factors: list[ScoreFactor] = []
 
@@ -152,13 +155,6 @@ def _intent_score(db: Session, company: Company) -> tuple[float, list[ScoreFacto
             ScoreFactor(f"Recent funding/press mention detected in last {PRESS_LOOKBACK_DAYS} days", 0.20)
         )
 
-    nlp_features = (
-        db.query(NLPFeature)
-        .filter(NLPFeature.company_id == company.id)
-        .order_by(NLPFeature.processed_at.desc())
-        .limit(_NLP_FEATURE_SAMPLE_SIZE)
-        .all()
-    )
     nlp_points = 0.0
     if nlp_features:
         avg_confidence = sum(float(f.confidence or 0) for f in nlp_features) / len(nlp_features)
@@ -174,19 +170,40 @@ def _intent_score(db: Session, company: Company) -> tuple[float, list[ScoreFacto
     return round(intent, 2), factors
 
 
-def _recommend_service(db: Session, company: Company) -> tuple[str | None, float | None]:
-    nlp_features = db.query(NLPFeature).filter(NLPFeature.company_id == company.id).all()
-    votes: dict[str, list[float]] = {}
+def _recommend_service(
+    nlp_features: list,
+) -> tuple[str | None, float | None, dict[str, float]]:
+    """Return the top recommended service, its confidence, and probabilities for
+    all four service lines (normalised to sum to 100 %).
+
+    Per requirement §3.8: the system must output multi-service probabilities,
+    e.g. "80 % probability of requiring recruitment services AND 65 % probability
+    of requiring corporate learning services."
+    """
+    all_services = [v.value for v in ServiceLine]
+    votes: dict[str, list[float]] = {svc: [] for svc in all_services}
+
     for feature in nlp_features:
-        if feature.predicted_need_category:
-            votes.setdefault(feature.predicted_need_category, []).append(float(feature.confidence or 0))
+        if feature.predicted_need_category and feature.predicted_need_category in votes:
+            votes[feature.predicted_need_category].append(float(feature.confidence or 0))
 
-    if not votes:
-        return None, None
+    total_weight = sum(sum(v) for v in votes.values())
 
-    best_category = max(votes, key=lambda key: sum(votes[key]))
-    confidences = votes[best_category]
-    return best_category, round(sum(confidences) / len(confidences), 4)
+    if total_weight == 0:
+        return None, None, {}
+
+    # Weighted vote share normalised to 0-100 %
+    service_probabilities: dict[str, float] = {
+        svc: round(sum(votes[svc]) / total_weight * 100, 2) for svc in all_services
+    }
+
+    best_category = max(service_probabilities, key=lambda k: service_probabilities[k])
+    # Express confidence as the normalised probability of the top service (0-1
+    # scale so it stays consistent with the stored recommendation_confidence
+    # Numeric(5,4) column and with how the frontend formats it as a percentage).
+    recommendation_confidence = round(service_probabilities[best_category] / 100, 4)
+
+    return best_category, recommendation_confidence, service_probabilities
 
 
 def score_company(db: Session, company: Company) -> ScoringResult:
@@ -195,10 +212,20 @@ def score_company(db: Session, company: Company) -> ScoringResult:
     Every score returns its top contributing factors — explainability-first
     is a hard requirement for BD trust and adoption (§5).
     """
+    # Fetch NLP features once — reused by both _intent_score and _recommend_service
+    # to avoid two separate table scans for the same company in the same call.
+    nlp_features = (
+        db.query(NLPFeature)
+        .filter(NLPFeature.company_id == company.id)
+        .order_by(NLPFeature.processed_at.desc())
+        .limit(_NLP_FEATURE_SAMPLE_SIZE)
+        .all()
+    )
+
     fit_score, fit_factors = _fit_score(company)
-    intent_score, intent_factors = _intent_score(db, company)
+    intent_score, intent_factors = _intent_score(db, company, nlp_features)
     conversion_probability = round((fit_score + intent_score) / 2, 2)
-    recommended_service, recommendation_confidence = _recommend_service(db, company)
+    recommended_service, recommendation_confidence, service_probabilities = _recommend_service(nlp_features)
 
     top_factors = sorted(fit_factors + intent_factors, key=lambda f: abs(f.weight), reverse=True)[:5]
 
@@ -209,6 +236,7 @@ def score_company(db: Session, company: Company) -> ScoringResult:
         recommended_service=recommended_service,
         recommendation_confidence=recommendation_confidence,
         top_factors=top_factors,
+        service_probabilities=service_probabilities,
     )
 
 
@@ -223,6 +251,7 @@ def persist_score(
         recommended_service=result.recommended_service,
         recommendation_confidence=result.recommendation_confidence,
         top_factors=[{"factor": f.factor, "weight": f.weight} for f in result.top_factors],
+        service_probabilities=result.service_probabilities if result.service_probabilities else None,
         model_version=model_version,
     )
     db.add(lead_score)

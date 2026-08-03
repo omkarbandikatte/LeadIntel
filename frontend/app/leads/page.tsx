@@ -3,12 +3,21 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { NavBar } from "@/components/NavBar";
+import { AppShell } from "@/components/AppShell";
+import { BackButton } from "@/components/BackButton";
+import { SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
-import { listLeads, type LeadFilters, type LeadListResponse } from "@/lib/api-client";
+import { listLeads, triggerScoring, type LeadFilters, type LeadListResponse } from "@/lib/api-client";
+
+const SERVICE_LABELS: Record<string, string> = {
+  branding: "Employer Branding",
+  hiring: "Recruitment & Hiring",
+  learning_development: "Learning & Development",
+  iac_partnership: "Industry-Academia Partnership",
+};
 
 const SERVICE_LINES = ["branding", "hiring", "learning_development", "iac_partnership"] as const;
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 function scoreColor(score: number): string {
   if (score >= 80) return "var(--status-good)";
@@ -17,11 +26,12 @@ function scoreColor(score: number): string {
 }
 
 function LeadsPageContent() {
-  const { token } = useAuth();
+  const { token, role } = useAuth();
   const [filters, setFilters] = useState<LeadFilters>({ sort: "score_desc", page: 1, page_size: PAGE_SIZE });
   const [data, setData] = useState<LeadListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [scoringMsg, setScoringMsg] = useState<string | null>(null);
 
   const fetchLeads = useCallback(async () => {
     if (!token) return;
@@ -47,14 +57,51 @@ function LeadsPageContent() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / (filters.page_size ?? PAGE_SIZE))) : 1;
 
+  const ROLE_HEADER: Record<string, { title: string; sub: string }> = {
+    bd_executive: { title: "My Leads", sub: "Your pipeline sorted by conversion probability. Focus on the highest-scoring companies." },
+    manager:      { title: "Team Leads", sub: "Full pipeline across all BD executives, ranked by conversion probability." },
+    admin:        { title: "All Leads", sub: "Complete lead database. Use the scoring panel to re-run the model." },
+  };
+  const header = ROLE_HEADER[role ?? "bd_executive"] ?? ROLE_HEADER["bd_executive"];
+
+  async function handleRunScoring() {
+    if (!token) return;
+    setScoringMsg("Queuing…");
+    try {
+      await triggerScoring(token, "incremental");
+      setScoringMsg("✓ Incremental scoring queued — refresh in a moment.");
+    } catch {
+      setScoringMsg("Failed to queue scoring run.");
+    }
+  }
+
   return (
-    <div>
-      <NavBar />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="mb-1 text-2xl font-semibold">Ranked Leads</h1>
-        <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
-          Companies ranked by conversion probability, highest first.
-        </p>
+    <AppShell>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <BackButton />
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h1 className="mb-1 text-xl font-semibold sm:text-2xl">{header.title}</h1>
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{header.sub}</p>
+          </div>
+          {role === "admin" && (
+            <div className="flex items-center gap-2">
+              <button onClick={handleRunScoring}
+                className="rounded-md border px-3 py-1.5 text-sm"
+                style={{ borderColor: "var(--border)" }}>
+                Run scoring
+              </button>
+              <Link href="/companies"
+                className="rounded-md px-3 py-1.5 text-sm font-medium text-white"
+                style={{ backgroundColor: "var(--series-1)" }}>
+                + Add company
+              </Link>
+            </div>
+          )}
+        </div>
+        {scoringMsg && (
+          <p className="mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>{scoringMsg}</p>
+        )}
 
         <div className="mb-6 flex flex-wrap gap-3">
           <input
@@ -78,7 +125,7 @@ function LeadsPageContent() {
             <option value="">All service lines</option>
             {SERVICE_LINES.map((line) => (
               <option key={line} value={line}>
-                {line.replace("_", " ")}
+                {SERVICE_LABELS[line]}
               </option>
             ))}
           </select>
@@ -113,13 +160,7 @@ function LeadsPageContent() {
               </tr>
             </thead>
             <tbody>
-              {isLoading && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center" style={{ color: "var(--text-secondary)" }}>
-                    Loading leads…
-                  </td>
-                </tr>
-              )}
+              {isLoading && <SkeletonRows rows={10} cols={6} />}
               {!isLoading && data?.results.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-8 text-center" style={{ color: "var(--text-secondary)" }}>
@@ -148,8 +189,8 @@ function LeadsPageContent() {
                     <td className="px-4 py-3 font-semibold" style={{ color: scoreColor(lead.conversion_probability) }}>
                       {lead.conversion_probability.toFixed(1)}
                     </td>
-                    <td className="px-4 py-3 capitalize" style={{ color: "var(--text-secondary)" }}>
-                      {lead.recommended_service?.replace("_", " ") ?? "—"}
+                    <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
+                      {lead.recommended_service ? (SERVICE_LABELS[lead.recommended_service] ?? lead.recommended_service) : "—"}
                     </td>
                     <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
                       {new Date(lead.last_scored_at).toLocaleDateString()}
@@ -186,7 +227,7 @@ function LeadsPageContent() {
           </div>
         )}
       </main>
-    </div>
+    </AppShell>
   );
 }
 

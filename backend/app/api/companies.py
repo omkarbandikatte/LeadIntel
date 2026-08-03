@@ -16,6 +16,7 @@ from app.schemas.company import (
     BulkUploadRowError,
     CompanyCreateRequest,
     CompanyDetailResponse,
+    CompanyListResponse,
     CompanyResponse,
     EnrichTriggerResponse,
     RawDocumentResponse,
@@ -33,6 +34,22 @@ def _get_company_or_404(db: Session, company_id: uuid.UUID) -> Company:
             detail={"error": {"code": "COMPANY_NOT_FOUND", "message": "No company with this id exists."}},
         )
     return company
+
+
+@router.get("", response_model=CompanyListResponse)
+def list_companies(
+    page: int = 1,
+    page_size: int = 25,
+    search: str | None = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any_role),
+) -> CompanyListResponse:
+    q = db.query(Company)
+    if search:
+        q = q.filter(Company.name.ilike(f"%{search}%"))
+    total = q.count()
+    results = q.order_by(Company.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return CompanyListResponse(total=total, page=page, page_size=page_size, results=results)
 
 
 @router.post("", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)

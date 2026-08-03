@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.models.company import Company
 from app.models.nlp_feature import NLPFeature
 from app.models.raw_document import RawDocument
@@ -114,7 +116,10 @@ def test_recommend_service_uses_highest_confidence_category(db_session):
     result = score_company(db_session, company)
 
     assert result.recommended_service == "hiring"
-    assert result.recommendation_confidence == 0.9
+    # recommendation_confidence is now the normalised service probability (0-1):
+    # hiring = 0.9 / (0.9 + 0.2) * 100 = 81.82 %, so confidence = 0.8182
+    assert result.recommendation_confidence == pytest.approx(0.8182, abs=1e-3)
+    assert result.service_probabilities["hiring"] > result.service_probabilities["branding"]
 
 
 def test_conversion_probability_is_average_of_fit_and_intent(db_session):

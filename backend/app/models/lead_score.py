@@ -31,6 +31,7 @@ class LeadScore(Base):
     recommended_service: Mapped[str | None] = mapped_column(String(50))
     recommendation_confidence: Mapped[float | None] = mapped_column(Numeric(5, 4))
     top_factors: Mapped[list | None] = mapped_column(JSONB)
+    service_probabilities: Mapped[dict | None] = mapped_column(JSONB)
     model_version: Mapped[str | None] = mapped_column(String(50))
     scored_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("now()"))
 

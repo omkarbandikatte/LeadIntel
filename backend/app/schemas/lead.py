@@ -36,6 +36,7 @@ class LeadExplanationResponse(BaseModel):
     top_factors: list[TopFactor]
     recommended_service: str | None
     recommendation_confidence: float | None
+    service_probabilities: dict[str, float] | None
     model_version: str | None
 
 

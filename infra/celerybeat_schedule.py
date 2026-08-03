@@ -18,4 +18,11 @@ BEAT_SCHEDULE = {
         "schedule": timedelta(days=7),
         "args": ("full",),
     },
+    "feedback-loop-check-nightly": {
+        # §3.7 step 6: automatically retrain V2 model when BD feedback accuracy
+        # drops below threshold (see worker.check_feedback_and_retrain_task).
+        "task": "leadintel.check_feedback_and_retrain",
+        "schedule": timedelta(hours=24),
+        "args": (),
+    },
 }
