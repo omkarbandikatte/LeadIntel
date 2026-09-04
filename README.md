@@ -2,7 +2,7 @@
 
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111-green.svg)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 LeadIntel is an end-to-end B2B lead intelligence platform built for Cloud Counselage's Business Development team. It automatically identifies high-potential companies, scores their buying intent and conversion probability, and recommends which internal service line — **Branding**, **Hiring**, **Learning & Development**, or **IAC Partnership** — to pitch next.
@@ -29,7 +29,7 @@ LeadIntel is an end-to-end B2B lead intelligence platform built for Cloud Counse
 
 ## Features
 
-- **Automated ingestion** — Celery Beat-driven scrapers pull firmographic data, job postings, and news/press releases from public sources on a daily/weekly schedule.
+- **Automated ingestion** — Celery Beat discovers pending companies daily and runs the complete scrape -> NLP -> score workflow for each one. Existing companies can also be enriched on demand.
 - **NLP pipeline** — spaCy entity/keyword extraction + a locally-run HuggingFace `distilbert-base-uncased-mnli` zero-shot classifier categorises every document into Branding / Hiring / L&D / IAC Partnership — no OpenAI calls, fully offline.
 - **Two-stage lead scoring**:
   - **V1 Rules Engine** — deterministic scoring from the day the system is deployed (cold-start safe).
@@ -38,7 +38,7 @@ LeadIntel is an end-to-end B2B lead intelligence platform built for Cloud Counse
 - **Explainability** — `top_factors` field on every score shows which signals drove the result.
 - **CRM sync** — CSV export/import round-trip (or DB-level sync if the CRM is self-hosted).
 - **RBAC** — admin / manager / BD-rep roles enforced at the API layer with self-issued JWTs.
-- **Feedback loop** — BD reps mark outcomes; Celery Beat re-trains the ML model automatically when accuracy drops below 70%.
+- **Feedback loop** — BD reps mark score accuracy; Celery Beat monitors that signal and triggers retraining from closed CRM deal outcomes when accuracy drops below 70%.
 - **Analytics dashboard** — ranked lead list, account profile pages, pipeline analytics, and charts — all in a Next.js App Router frontend.
 
 ---
@@ -113,8 +113,8 @@ Full detail in [`01_TECHNICAL_ARCHITECTURE.md`](01_TECHNICAL_ARCHITECTURE.md).
 | **NLP** | spaCy `en_core_web_sm`, HuggingFace `distilbert-base-uncased-mnli` |
 | **ML** | scikit-learn 1.5.2, XGBoost 2.1.3, joblib |
 | **Auth** | python-jose (JWT), passlib (bcrypt) |
-| **Frontend** | Next.js 14 (App Router), TypeScript, Tailwind CSS |
-| **Charts** | Recharts |
+| **Frontend** | Next.js 15 (App Router), TypeScript, Tailwind CSS |
+| **Charts** | Custom React/Tailwind chart components |
 | **Containerisation** | Docker, docker-compose |
 | **CI** | GitHub Actions |
 
@@ -210,6 +210,8 @@ celery -A app.worker worker --loglevel=info
 celery -A app.worker beat   --loglevel=info
 ```
 
+Celery Beat runs the end-to-end workflow: pending companies are scraped for firmographic, job, and news documents; new documents are processed by spaCy and the Hugging Face classifier; successfully enriched companies are scored by the rules engine or available ML artifact; and the feedback task monitors retraining conditions.
+
 ### 4. Frontend
 
 ```bash
@@ -281,7 +283,7 @@ Trained on **6 711 rows** · 9 features · `logreg_v2_2026-08-02` artifact.
 
 ### Feedback Loop
 
-Celery Beat monitors prediction accuracy. When it drops below 70%, the pipeline re-trains automatically and replaces the artifact — no manual intervention required.
+Celery Beat monitors score accuracy feedback. When it drops below 70%, the pipeline retrains automatically from closed CRM deal outcomes and replaces the artifact — no manual intervention required.
 
 ---
 
@@ -298,10 +300,10 @@ Interactive docs: `http://localhost:8000/docs`
 | `GET` | `/companies/{id}` | Company detail + latest score |
 | `POST` | `/companies` | Add company (admin/manager) |
 | `GET` | `/leads` | Ranked lead list with scores |
-| `POST` | `/scoring/trigger` | Manually trigger scoring run |
-| `POST` | `/scoring/feedback` | Submit outcome feedback |
-| `GET` | `/analytics/overview` | Pipeline KPIs |
-| `GET` | `/analytics/trends` | Score trend time-series |
+| `POST` | `/scoring/run` | Manually trigger scoring run |
+| `POST` | `/leads/{company_id}/feedback` | Submit score feedback |
+| `GET` | `/analytics/team` | Pipeline KPIs and model accuracy |
+| `GET` | `/analytics/extended` | Extended pipeline analytics |
 | `POST` | `/crm/sync` | Export/import CRM CSV |
 
 Full contract in [`03_API_SPECIFICATION.md`](03_API_SPECIFICATION.md).

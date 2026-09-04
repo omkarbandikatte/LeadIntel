@@ -57,10 +57,10 @@ export default function LoginPage() {
           {/* Quote / tagline */}
           <div>
             <blockquote className="text-2xl font-semibold leading-snug text-white">
-              "Know which company to pitch —<br />before your competitors do."
+              &quot;Know which company to pitch —<br />before your competitors do.&quot;
             </blockquote>
             <p className="mt-4 text-sm text-white opacity-70">
-              AI-powered B2B lead scoring for Cloud Counselage's BD team.
+              AI-powered B2B lead scoring for Cloud Counselage&apos;s BD team.
               Firmographic fit · Intent signals · ML conversion probability.
             </p>
 

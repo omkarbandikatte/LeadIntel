@@ -8,6 +8,11 @@ Loaded by app.worker via celery_app.conf.beat_schedule.
 from datetime import timedelta
 
 BEAT_SCHEDULE = {
+    "enrich-pending-companies-daily": {
+        "task": "leadintel.enrich_pending_companies",
+        "schedule": timedelta(hours=24),
+        "args": (),
+    },
     "rescore-enriched-companies-nightly": {
         "task": "leadintel.score_all_companies",
         "schedule": timedelta(hours=24),

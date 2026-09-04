@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.feedback import Feedback
+from app.models.enums import EnrichmentStatus
 from app.services.ingestion.orchestrator import run_ingestion
 from app.services.nlp.processing import process_unprocessed_documents
 from app.services.scoring.ml_scorer import score_and_persist
@@ -49,6 +50,13 @@ def enrich_company_task(company_id: str) -> dict:
             return {"company_id": company_id, "status": "not_found"}
 
         documents = run_ingestion(db, company)
+        if company.enrichment_status != EnrichmentStatus.ENRICHED.value:
+            return {
+                "company_id": company_id,
+                "status": "failed",
+                "documents_scraped": len(documents),
+            }
+
         features = process_unprocessed_documents(db, documents)
         lead_score = score_and_persist(db, company)
 
@@ -63,6 +71,28 @@ def enrich_company_task(company_id: str) -> dict:
         db.close()
 
 
+@celery_app.task(name="leadintel.enrich_pending_companies")
+def enrich_pending_companies_task() -> dict:
+    """Run the full scrape -> NLP -> score chain for pending companies."""
+    db = SessionLocal()
+    try:
+        company_ids = [
+            str(company.id)
+            for company in db.query(Company.id)
+            .filter(Company.enrichment_status == EnrichmentStatus.PENDING.value)
+            .all()
+        ]
+    finally:
+        db.close()
+
+    results = [enrich_company_task.run(company_id) for company_id in company_ids]
+    return {
+        "companies_seen": len(results),
+        "companies_enriched": sum(result["status"] == "enriched" for result in results),
+        "companies_failed": sum(result["status"] == "failed" for result in results),
+    }
+
+
 @celery_app.task(name="leadintel.score_all_companies")
 def score_all_companies_task(mode: str = "incremental") -> dict:
     """Batch (re)scoring across all companies — backs POST /api/scoring/run."""
@@ -70,7 +100,10 @@ def score_all_companies_task(mode: str = "incremental") -> dict:
     try:
         query = db.query(Company)
         if mode == "incremental":
-            query = query.filter(Company.enrichment_status == "enriched")
+            query = query.filter(
+                Company.enrichment_status == EnrichmentStatus.ENRICHED.value,
+                ~Company.lead_scores.any(),
+            )
 
         companies = query.all()
         scored = 0

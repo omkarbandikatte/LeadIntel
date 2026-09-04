@@ -29,9 +29,12 @@ def _load_artifact() -> dict[str, Any] | None:
         return None
 
     cached_path = _artifact_cache.get("path")
-    if cached_path != str(path):
+    cached_mtime = _artifact_cache.get("mtime_ns")
+    current_mtime = path.stat().st_mtime_ns
+    if cached_path != str(path) or cached_mtime != current_mtime:
         _artifact_cache["artifact"] = joblib.load(path)
         _artifact_cache["path"] = str(path)
+        _artifact_cache["mtime_ns"] = current_mtime
     return _artifact_cache["artifact"]
 
 

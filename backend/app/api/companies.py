@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -24,6 +25,7 @@ from app.schemas.company import (
 from app.worker import enrich_company_task
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
+logger = logging.getLogger(__name__)
 
 
 def _get_company_or_404(db: Session, company_id: uuid.UUID) -> Company:
@@ -62,6 +64,10 @@ def create_company(
     db.add(company)
     db.commit()
     db.refresh(company)
+    try:
+        enrich_company_task.delay(str(company.id))
+    except Exception:
+        logger.exception("Could not queue enrichment for company %s", company.id)
     return company
 
 
@@ -77,6 +83,7 @@ def bulk_upload_companies(
     accepted = 0
     errors: list[BulkUploadRowError] = []
 
+    companies: list[Company] = []
     for row_number, row in enumerate(reader, start=2):  # header is row 1
         name = (row.get("name") or "").strip()
         if not name:
@@ -89,9 +96,15 @@ def bulk_upload_companies(
             industry=(row.get("industry") or "").strip() or None,
         )
         db.add(company)
+        companies.append(company)
         accepted += 1
 
     db.commit()
+    for company in companies:
+        try:
+            enrich_company_task.delay(str(company.id))
+        except Exception:
+            logger.exception("Could not queue enrichment for company %s", company.id)
     return BulkUploadResponse(accepted=accepted, rejected=len(errors), errors=errors)
 
 
