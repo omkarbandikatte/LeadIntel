@@ -1,6 +1,8 @@
 from urllib.parse import urlparse
 from urllib.robotparser import RobotFileParser
 
+import requests
+
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -28,7 +30,15 @@ def is_scraping_allowed(url: str) -> bool:
         parser = RobotFileParser()
         parser.set_url(robots_url)
         try:
-            parser.read()
+            # RobotFileParser.read() uses urllib's bare "Python-urllib/x.y"
+            # UA, which some WAFs 403 (silently making the parser treat the
+            # whole site as disallowed) even though the same host serves the
+            # file fine to our real scraper UA — fetch it ourselves instead.
+            response = requests.get(
+                robots_url, headers={"User-Agent": settings.SCRAPER_USER_AGENT}, timeout=10.0
+            )
+            response.raise_for_status()
+            parser.parse(response.text.splitlines())
         except Exception:
             # No reachable robots.txt — treat as permissive.
             _robots_cache[robots_url] = parser

@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -9,8 +10,10 @@ from app.db.session import get_db
 from app.models.company import Company
 from app.models.feedback import Feedback
 from app.models.lead_score import LeadScore
+from app.models.signal import Signal
 from app.models.user import User
 from app.schemas.lead import (
+    EvidenceItem,
     FeedbackRequest,
     FeedbackResponse,
     LeadExplanationResponse,
@@ -19,8 +22,16 @@ from app.schemas.lead import (
     LeadSortOption,
     TopFactor,
 )
+from app.services.scoring.rules_engine import SIGNAL_DECAY_WINDOW_DAYS
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
+
+SERVICE_LABELS: dict[str, str] = {
+    "branding": "Employer Branding",
+    "hiring": "Recruitment & Hiring",
+    "learning_development": "Learning & Development",
+    "iac_partnership": "Industry-Academia Partnership",
+}
 
 
 def _latest_score_subquery(db: Session):
@@ -105,6 +116,9 @@ def list_leads(
             company_id=company.id,
             company_name=company.name,
             conversion_probability=float(score.conversion_probability),
+            opportunity_score=(
+                float(score.opportunity_score) if score.opportunity_score is not None else None
+            ),
             recommended_service=score.recommended_service,
             recommendation_confidence=(
                 float(score.recommendation_confidence)
@@ -113,6 +127,7 @@ def list_leads(
             ),
             industry=company.industry,
             location=company.location_city or company.location_country,
+            intent_trend=score.intent_trend,
             last_scored_at=score.scored_at,
         )
         for score, company in rows
@@ -131,11 +146,53 @@ def get_lead_explanation(
 
     top_factors = [TopFactor(**factor) for factor in (lead_score.top_factors or [])]
 
+    decay_cutoff = datetime.now(UTC) - timedelta(days=SIGNAL_DECAY_WINDOW_DAYS)
+    recent_signals = (
+        db.query(Signal)
+        .filter(Signal.company_id == company_id, Signal.detected_at >= decay_cutoff)
+        .order_by(Signal.detected_at.desc())
+        .limit(5)
+        .all()
+    )
+
+    why_this_company = None
+    if top_factors:
+        reasons = ", ".join(f.factor for f in top_factors[:3])
+        why_this_company = f"Surfaced because: {reasons}."
+
+    why_now = None
+    if recent_signals:
+        newest = recent_signals[0]
+        age_days = max(0, (datetime.now(UTC) - newest.detected_at).days)
+        age_text = "today" if age_days == 0 else f"{age_days} day(s) ago"
+        why_now = (
+            f"A {newest.direction} '{newest.signal_type.replace('_', ' ')}' signal was detected {age_text}."
+        )
+
+    what_to_offer = None
+    if lead_score.recommended_service:
+        label = SERVICE_LABELS.get(lead_score.recommended_service, lead_score.recommended_service)
+        confidence_pct = (
+            round(float(lead_score.recommendation_confidence) * 100)
+            if lead_score.recommendation_confidence is not None
+            else None
+        )
+        what_to_offer = (
+            f"{label}" + (f" ({confidence_pct}% confidence)" if confidence_pct is not None else "")
+        )
+
     return LeadExplanationResponse(
         company_id=company_id,
         fit_score=float(lead_score.fit_score) if lead_score.fit_score is not None else None,
         intent_score=float(lead_score.intent_score) if lead_score.intent_score is not None else None,
         conversion_probability=float(lead_score.conversion_probability),
+        opportunity_score=(
+            float(lead_score.opportunity_score) if lead_score.opportunity_score is not None else None
+        ),
+        engagement_score=(
+            float(lead_score.engagement_score) if lead_score.engagement_score is not None else None
+        ),
+        intent_trend=lead_score.intent_trend,
         top_factors=top_factors,
         recommended_service=lead_score.recommended_service,
         recommendation_confidence=(
@@ -145,6 +202,19 @@ def get_lead_explanation(
         ),
         service_probabilities=lead_score.service_probabilities,
         model_version=lead_score.model_version,
+        why_this_company=why_this_company,
+        why_now=why_now,
+        what_to_offer=what_to_offer,
+        evidence=[
+            EvidenceItem(
+                signal_type=s.signal_type,
+                direction=s.direction,
+                confidence=float(s.confidence or 0),
+                headline=s.headline,
+                detected_at=s.detected_at,
+            )
+            for s in recent_signals
+        ],
     )
 
 

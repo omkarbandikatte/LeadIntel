@@ -47,6 +47,12 @@ class Company(Base):
 
     raw_documents = relationship("RawDocument", back_populates="company", cascade="all, delete-orphan")
     nlp_features = relationship("NLPFeature", back_populates="company", cascade="all, delete-orphan")
+    signals = relationship(
+        "Signal",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="Signal.detected_at.desc()",
+    )
     lead_scores = relationship(
         "LeadScore",
         back_populates="company",

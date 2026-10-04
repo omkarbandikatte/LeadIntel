@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models.company import Company
 from app.models.enums import EnrichmentStatus
 from app.models.raw_document import RawDocument
+from app.models.signal import Signal
 from app.models.user import User
 from app.schemas.company import (
     BulkUploadResponse,
@@ -22,6 +23,7 @@ from app.schemas.company import (
     EnrichTriggerResponse,
     RawDocumentResponse,
 )
+from app.schemas.signal import SignalListResponse, SignalResponse
 from app.worker import enrich_company_task
 
 router = APIRouter(prefix="/api/companies", tags=["companies"])
@@ -151,4 +153,38 @@ def list_company_documents(
         .filter(RawDocument.company_id == company_id)
         .order_by(RawDocument.scraped_at.desc())
         .all()
+    )
+
+
+@router.get("/{company_id}/signals", response_model=SignalListResponse)
+def list_company_signals(
+    company_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_any_role),
+) -> SignalListResponse:
+    """Business Signal Engine timeline — every typed, directional signal detected
+    for this company (hiring, expansion, funding, technology adoption, leadership
+    change, layoffs, hiring freeze), newest first.
+    """
+    _get_company_or_404(db, company_id)
+    signals = (
+        db.query(Signal)
+        .filter(Signal.company_id == company_id)
+        .order_by(Signal.detected_at.desc())
+        .limit(100)
+        .all()
+    )
+    return SignalListResponse(
+        total=len(signals),
+        results=[
+            SignalResponse(
+                id=s.id,
+                signal_type=s.signal_type,
+                direction=s.direction,
+                confidence=float(s.confidence or 0),
+                headline=s.headline,
+                detected_at=s.detected_at,
+            )
+            for s in signals
+        ],
     )

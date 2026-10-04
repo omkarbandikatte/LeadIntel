@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { BackButton } from "@/components/BackButton";
@@ -50,7 +51,10 @@ export default function LoginPage() {
         {/* Content overlay */}
         <div className="absolute inset-0 flex flex-col justify-between p-12">
           {/* Logo */}
-          <Link href="/" className="text-lg font-bold text-white tracking-tight">
+          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-white tracking-tight">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+              <Sparkles size={16} />
+            </span>
             LeadIntel
           </Link>
 
@@ -86,14 +90,20 @@ export default function LoginPage() {
         style={{ backgroundColor: "var(--page-plane)" }}>
 
         {/* Mobile logo (hidden on desktop where left panel shows it) */}
-        <div className="mb-8 lg:hidden">
+        <div className="mb-8 flex items-center gap-2 lg:hidden">
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-white"
+            style={{ background: "linear-gradient(135deg, var(--series-1), var(--accent-l))" }}
+          >
+            <Sparkles size={16} />
+          </span>
           <Link href="/" className="text-xl font-bold tracking-tight">LeadIntel</Link>
         </div>
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <BackButton />
-            <h1 className="text-2xl font-semibold">Sign in</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Sign in</h1>
             <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
               B2B Lead Intelligence &amp; Conversion Prediction
             </p>
@@ -110,7 +120,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-md border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-2"
+                className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors focus:ring-2"
                 style={{
                   borderColor: "var(--border)",
                   backgroundColor: "var(--surface-1)",
@@ -132,7 +142,7 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-md border px-3 py-2.5 pr-10 text-sm outline-none transition-colors focus:ring-2"
+                  className="w-full rounded-xl border px-3 py-2.5 pr-10 text-sm outline-none transition-colors focus:ring-2"
                   style={{
                     borderColor: "var(--border)",
                     backgroundColor: "var(--surface-1)",
@@ -147,19 +157,7 @@ export default function LoginPage() {
                   style={{ color: "var(--text-muted)" }}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? (
-                    /* Eye icon — password visible, click to hide */
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  ) : (
-                    /* Eye-off icon — password hidden, click to show */
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -173,7 +171,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-md px-3 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.01] disabled:opacity-60"
               style={{ backgroundColor: "var(--series-1)" }}
             >
               {isSubmitting ? "Signing in…" : "Sign in"}

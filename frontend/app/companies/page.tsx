@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Building2, ExternalLink, Plus, Search, Upload, X } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
@@ -8,10 +9,10 @@ import { SkeletonRows } from "@/components/Skeleton";
 import { useAuth } from "@/lib/auth-context";
 import { listCompanies, createCompany, bulkUploadCompanies, type Company, type BulkUploadResponse } from "@/lib/api-client";
 
-const STATUS_COLOR: Record<string, string> = {
-  enriched: "var(--status-good)",
-  pending: "var(--text-muted)",
-  failed: "var(--status-critical)",
+const STATUS_COLOR: Record<string, { color: string; soft: string }> = {
+  enriched: { color: "var(--status-good)", soft: "var(--status-good-soft)" },
+  pending: { color: "var(--text-muted)", soft: "var(--gridline)" },
+  failed: { color: "var(--status-critical)", soft: "var(--status-critical-soft)" },
 };
 
 const PAGE_SIZE = 10;
@@ -109,9 +110,9 @@ function CompaniesContent() {
     <AppShell>
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <BackButton />
-        <div className="mb-6 flex items-start justify-between">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold sm:text-2xl">Companies</h1>
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Companies</h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               All tracked companies and their enrichment status.
             </p>
@@ -120,14 +121,16 @@ function CompaniesContent() {
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowBulkUpload(false); setShowForm((v) => !v); setBulkResult(null); }}
-                className="rounded-md border px-4 py-2 text-sm font-medium"
+                className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--series-1)]"
                 style={{ borderColor: "var(--border)" }}>
-                {showForm ? "Cancel" : "+ Add company"}
+                {showForm ? <X size={14} /> : <Plus size={14} />}
+                {showForm ? "Cancel" : "Add company"}
               </button>
               <button
                 onClick={() => { setShowForm(false); setShowBulkUpload((v) => !v); setBulkResult(null); }}
-                className="rounded-md px-4 py-2 text-sm font-medium text-white"
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02]"
                 style={{ backgroundColor: "var(--series-1)" }}>
+                <Upload size={14} />
                 {showBulkUpload ? "Cancel" : "Bulk upload CSV"}
               </button>
             </div>
@@ -136,11 +139,10 @@ function CompaniesContent() {
 
         {/* Bulk upload form */}
         {showBulkUpload && role === "admin" && (
-          <div className="mb-6 rounded-lg border p-5"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+          <div className="surface-card animate-scale-in mb-6 p-5">
             <h2 className="mb-1 text-sm font-semibold">Bulk upload via CSV</h2>
             <p className="mb-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-              Required column: <code className="rounded bg-gridline px-1">name</code>. Optional: <code className="rounded bg-gridline px-1">website</code>, <code className="rounded bg-gridline px-1">industry</code>.
+              Required column: <code className="rounded px-1" style={{ backgroundColor: "var(--gridline)" }}>name</code>. Optional: <code className="rounded px-1" style={{ backgroundColor: "var(--gridline)" }}>website</code>, <code className="rounded px-1" style={{ backgroundColor: "var(--gridline)" }}>industry</code>.
             </p>
             <div className="flex items-center gap-3">
               <input
@@ -152,13 +154,13 @@ function CompaniesContent() {
               <button
                 onClick={handleBulkUpload}
                 disabled={!bulkFile || isBulkUploading}
-                className="rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 style={{ backgroundColor: "var(--series-1)" }}>
                 {isBulkUploading ? "Uploading…" : "Upload"}
               </button>
             </div>
             {bulkResult && (
-              <div className="mt-3 rounded-md p-3 text-sm" style={{ backgroundColor: "var(--gridline)" }}>
+              <div className="mt-3 rounded-xl p-3 text-sm" style={{ backgroundColor: "var(--surface-2)" }}>
                 <span style={{ color: "var(--status-good)" }}>✓</span>
                 {" "}Accepted <strong>{bulkResult.accepted}</strong>, rejected <strong>{bulkResult.rejected}</strong>
                 {bulkResult.errors.length > 0 && (
@@ -176,33 +178,31 @@ function CompaniesContent() {
 
         {/* Add company form */}
         {showForm && role === "admin" && (
-          <form onSubmit={handleCreate}
-            className="mb-6 rounded-lg border p-5"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+          <form onSubmit={handleCreate} className="surface-card animate-scale-in mb-6 p-5">
             <h2 className="mb-4 text-sm font-semibold">New company</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium">Company name *</label>
                 <input required value={newName} onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Acme Corp" className="w-full rounded-md border px-3 py-1.5 text-sm"
+                  placeholder="Acme Corp" className="w-full rounded-lg border px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)", backgroundColor: "var(--page-plane)" }} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium">Website</label>
                 <input value={newWebsite} onChange={(e) => setNewWebsite(e.target.value)}
-                  placeholder="https://acme.com" className="w-full rounded-md border px-3 py-1.5 text-sm"
+                  placeholder="https://acme.com" className="w-full rounded-lg border px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)", backgroundColor: "var(--page-plane)" }} />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium">Industry</label>
                 <input value={newIndustry} onChange={(e) => setNewIndustry(e.target.value)}
-                  placeholder="Manufacturing" className="w-full rounded-md border px-3 py-1.5 text-sm"
+                  placeholder="Manufacturing" className="w-full rounded-lg border px-3 py-1.5 text-sm"
                   style={{ borderColor: "var(--border)", backgroundColor: "var(--page-plane)" }} />
               </div>
             </div>
             {formError && <p className="mt-2 text-sm" style={{ color: "var(--status-critical)" }}>{formError}</p>}
             <button type="submit" disabled={isSubmitting}
-              className="mt-4 rounded-md px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              className="mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               style={{ backgroundColor: "var(--series-1)" }}>
               {isSubmitting ? "Adding…" : "Add company"}
             </button>
@@ -210,18 +210,18 @@ function CompaniesContent() {
         )}
 
         {/* Search */}
-        <div className="mb-4">
+        <div className="surface-card mb-4 inline-flex w-full max-w-sm items-center gap-2 px-3 py-2">
+          <Search size={15} style={{ color: "var(--text-muted)" }} />
           <input
             placeholder="Search by name…"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
-            className="w-full max-w-sm rounded-md border px-3 py-1.5 text-sm"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }} />
+            className="w-full bg-transparent text-sm outline-none" />
         </div>
 
         {errorMsg && <p className="mb-4 text-sm" style={{ color: "var(--status-critical)" }}>{errorMsg}</p>}
 
-        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+        <div className="surface-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
@@ -237,30 +237,41 @@ function CompaniesContent() {
               {!isLoading && results.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-8 text-center" style={{ color: "var(--text-secondary)" }}>No companies found.</td></tr>
               )}
-              {!isLoading && results.map((company) => (
-                <tr key={company.id} className="border-b last:border-0" style={{ borderColor: "var(--gridline)" }}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/companies/${company.id}`} className="hover:underline">{company.name}</Link>
-                    {company.website && (
-                      <a href={company.website} target="_blank" rel="noreferrer"
-                        className="ml-2 text-xs hover:underline" style={{ color: "var(--text-muted)" }}>↗</a>
-                    )}
-                  </td>
-                  <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{company.industry ?? "—"}</td>
-                  <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
-                    {[company.location_city, company.location_country].filter(Boolean).join(", ") || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
-                      style={{ backgroundColor: "var(--gridline)", color: STATUS_COLOR[company.enrichment_status] }}>
-                      {company.enrichment_status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
-                    {new Date(company.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
+              {!isLoading && results.map((company) => {
+                const status = STATUS_COLOR[company.enrichment_status] ?? STATUS_COLOR.pending;
+                return (
+                  <tr key={company.id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg"
+                          style={{ backgroundColor: "var(--series-1-soft)", color: "var(--series-1)" }}
+                        >
+                          <Building2 size={13} />
+                        </span>
+                        <Link href={`/companies/${company.id}`} className="hover:underline">{company.name}</Link>
+                        {company.website && (
+                          <a href={company.website} target="_blank" rel="noreferrer"
+                            style={{ color: "var(--text-muted)" }}><ExternalLink size={12} /></a>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{company.industry ?? "—"}</td>
+                    <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
+                      {[company.location_city, company.location_country].filter(Boolean).join(", ") || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize"
+                        style={{ backgroundColor: status.soft, color: status.color }}>
+                        {company.enrichment_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
+                      {new Date(company.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -270,10 +281,10 @@ function CompaniesContent() {
             <span>Page {page} of {totalPages} · {total} companies</span>
             <div className="flex gap-2">
               <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-md border px-3 py-1 disabled:opacity-40"
+                className="rounded-lg border px-3 py-1 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}>Previous</button>
               <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-                className="rounded-md border px-3 py-1 disabled:opacity-40"
+                className="rounded-lg border px-3 py-1 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}>Next</button>
             </div>
           </div>

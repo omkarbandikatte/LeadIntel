@@ -9,10 +9,12 @@ class LeadListItem(BaseModel):
     company_id: uuid.UUID
     company_name: str
     conversion_probability: float
+    opportunity_score: float | None
     recommended_service: str | None
     recommendation_confidence: float | None
     industry: str | None
     location: str | None
+    intent_trend: str | None
     last_scored_at: datetime
 
 
@@ -28,16 +30,31 @@ class TopFactor(BaseModel):
     weight: float
 
 
+class EvidenceItem(BaseModel):
+    signal_type: str
+    direction: str
+    confidence: float
+    headline: str | None
+    detected_at: datetime
+
+
 class LeadExplanationResponse(BaseModel):
     company_id: uuid.UUID
     fit_score: float | None
     intent_score: float | None
     conversion_probability: float
+    opportunity_score: float | None
+    engagement_score: float | None
+    intent_trend: str | None
     top_factors: list[TopFactor]
     recommended_service: str | None
     recommendation_confidence: float | None
     service_probabilities: dict[str, float] | None
     model_version: str | None
+    why_this_company: str | None = None
+    why_now: str | None = None
+    what_to_offer: str | None = None
+    evidence: list[EvidenceItem] = []
 
 
 class FeedbackRequest(BaseModel):

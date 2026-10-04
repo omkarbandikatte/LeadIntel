@@ -35,7 +35,7 @@ const SERVICE_LABELS: Record<string, string> = {
 
 function KpiCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
-    <div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+    <div className="surface-card p-5">
       <div className="text-3xl font-bold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>{value}</div>
       <div className="mt-1 text-sm font-medium">{label}</div>
       {sub && <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{sub}</div>}
@@ -50,7 +50,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <FadeIn>
-      <div className={`rounded-xl border p-5 ${className}`} style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+      <div className={`surface-card p-5 ${className}`}>
         {children}
       </div>
     </FadeIn>
@@ -146,7 +146,7 @@ function AnalyticsContent() {
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <BackButton />
         <div className="mb-8">
-          <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Analytics</h1>
+          <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">Analytics</h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Pipeline performance, model accuracy, and lead intelligence — live from the database.</p>
         </div>
 

@@ -1,6 +1,16 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  Building2,
+  Play,
+  Rocket,
+  Settings,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { SkeletonCard, SkeletonRows } from "@/components/Skeleton";
@@ -39,12 +49,34 @@ function ScoreChip({ score }: { score: number }) {
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon?: React.ElementType;
+}) {
   return (
-    <div className="rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
-      <div className="text-3xl font-semibold">{value}</div>
-      <div className="mt-1 text-sm font-medium">{label}</div>
-      {sub && <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{sub}</div>}
+    <div className="surface-card animate-scale-in p-5">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-3xl font-bold">{value}</div>
+          <div className="mt-1 text-sm font-medium">{label}</div>
+          {sub && <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{sub}</div>}
+        </div>
+        {Icon && (
+          <span
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ backgroundColor: "var(--series-1-soft)", color: "var(--series-1)" }}
+          >
+            <Icon size={18} />
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -72,21 +104,21 @@ function BdDashboard() {
   return (
     <AppShell>
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-semibold sm:text-2xl">My Pipeline</h1>
+        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">My Pipeline</h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           Your top leads to focus on today, ranked by conversion probability.
         </p>
 
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isLoading ? <><SkeletonCard /><SkeletonCard /></> : (
-            <><StatCard label="Total leads" value={total} />
-            <StatCard label="High priority" value={highPriority} sub="score ≥ 75" /></>
+            <><StatCard label="Total leads" value={total} icon={Target} />
+            <StatCard label="High priority" value={highPriority} sub="score ≥ 75" icon={Rocket} /></>
           )}
         </div>
 
-        <div className="rounded-lg border" style={{ borderColor: "var(--border)" }}>
+        <div className="surface-card overflow-hidden">
           <div className="border-b px-4 py-3 text-sm font-semibold"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+            style={{ borderColor: "var(--border)" }}>
             Top leads to action
           </div>
           <table className="w-full text-sm">
@@ -101,7 +133,7 @@ function BdDashboard() {
             <tbody>
               {isLoading && <SkeletonRows rows={5} cols={4} />}
               {!isLoading && leads.map((lead) => (
-                <tr key={lead.company_id} className="border-b last:border-0" style={{ borderColor: "var(--gridline)" }}>
+                <tr key={lead.company_id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
                   <td className="px-4 py-3 font-medium">
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
@@ -115,7 +147,7 @@ function BdDashboard() {
             </tbody>
           </table>
           <div className="border-t px-4 py-3 text-center" style={{ borderColor: "var(--border)" }}>
-            <Link href="/leads" className="text-sm hover:underline" style={{ color: "var(--series-1)" }}>
+            <Link href="/leads" className="text-sm font-medium hover:underline" style={{ color: "var(--series-1)" }}>
               View all {total} leads →
             </Link>
           </div>
@@ -152,29 +184,29 @@ function ManagerDashboard() {
   return (
     <AppShell>
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Team Overview</h1>
+        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">Team Overview</h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           Pipeline health and model performance across your team.
         </p>
 
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {isLoading ? <><SkeletonCard /><SkeletonCard /><SkeletonCard /></> : (
-            <><StatCard label="Total leads scored" value={analytics?.total_leads_scored ?? "—"} />
-            <StatCard label="Active pipeline" value={total} />
-            <StatCard label="Avg score (top 5)" value={avgProb} /></>
+            <><StatCard label="Total leads scored" value={analytics?.total_leads_scored ?? "—"} icon={Target} />
+            <StatCard label="Active pipeline" value={total} icon={TrendingUp} />
+            <StatCard label="Avg score (top 5)" value={avgProb} icon={Rocket} /></>
           )}
         </div>
 
         {analytics && (
-          <div className="mb-6 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+          <div className="surface-card mb-6 p-5">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
               Score band breakdown
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {analytics.score_band_performance.map((band) => (
-                <div key={band.band} className="rounded-md p-3 text-center"
-                  style={{ backgroundColor: "var(--gridline)" }}>
-                  <div className="text-xl font-semibold">{band.count}</div>
+                <div key={band.band} className="rounded-xl p-3 text-center"
+                  style={{ backgroundColor: "var(--surface-2)" }}>
+                  <div className="text-xl font-bold">{band.count}</div>
                   <div className="text-xs font-medium capitalize" style={{ color: "var(--text-secondary)" }}>{band.band}</div>
                   <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
                     {Math.round(band.closed_won_rate * 100)}% won
@@ -185,9 +217,9 @@ function ManagerDashboard() {
           </div>
         )}
 
-        <div className="rounded-lg border" style={{ borderColor: "var(--border)" }}>
+        <div className="surface-card overflow-hidden">
           <div className="border-b px-4 py-3 text-sm font-semibold"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+            style={{ borderColor: "var(--border)" }}>
             Top leads
           </div>
           <table className="w-full text-sm">
@@ -202,7 +234,7 @@ function ManagerDashboard() {
             <tbody>
               {isLoading && <SkeletonRows rows={5} cols={4} />}
               {!isLoading && leads.map((lead) => (
-                <tr key={lead.company_id} className="border-b last:border-0" style={{ borderColor: "var(--gridline)" }}>
+                <tr key={lead.company_id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
                   <td className="px-4 py-3 font-medium">
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
@@ -216,8 +248,8 @@ function ManagerDashboard() {
             </tbody>
           </table>
           <div className="border-t px-4 py-3 flex justify-between text-sm" style={{ borderColor: "var(--border)" }}>
-            <Link href="/leads" className="hover:underline" style={{ color: "var(--series-1)" }}>View all leads →</Link>
-            <Link href="/analytics" className="hover:underline" style={{ color: "var(--series-1)" }}>Full analytics →</Link>
+            <Link href="/leads" className="font-medium hover:underline" style={{ color: "var(--series-1)" }}>View all leads →</Link>
+            <Link href="/analytics" className="font-medium hover:underline" style={{ color: "var(--series-1)" }}>Full analytics →</Link>
           </div>
         </div>
       </main>
@@ -264,43 +296,47 @@ function AdminDashboard() {
   return (
     <AppShell>
       <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-semibold sm:text-2xl">System Dashboard</h1>
+        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">System Dashboard</h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           System health, quick actions, and recent pipeline activity.
         </p>
 
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {isLoading ? <><SkeletonCard /><SkeletonCard /><SkeletonCard /></> : (
-            <><StatCard label="Total companies" value={companies?.total ?? "—"} />
-            <StatCard label="Active users" value={pendingCount} />
-            <StatCard label="Roles" value={3} sub="admin · manager · bd_executive" /></>
+            <><StatCard label="Total companies" value={companies?.total ?? "—"} icon={Building2} />
+            <StatCard label="Active users" value={pendingCount} icon={Users} />
+            <StatCard label="Roles" value={3} sub="admin · manager · bd_executive" icon={ShieldCheck} /></>
           )}
         </div>
 
         {/* Quick actions */}
-        <div className="mb-6 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+        <div className="surface-card mb-6 p-5">
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
             Quick actions
           </h2>
           <div className="flex flex-wrap gap-3">
             <button onClick={() => runScoring("incremental")}
-              className="rounded-md border px-4 py-2 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--series-1)]"
               style={{ borderColor: "var(--border)" }}>
+              <Play size={14} />
               Run incremental scoring
             </button>
             <button onClick={() => runScoring("full")}
-              className="rounded-md border px-4 py-2 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--series-1)]"
               style={{ borderColor: "var(--border)" }}>
+              <Rocket size={14} />
               Run full scoring
             </button>
             <Link href="/companies"
-              className="rounded-md border px-4 py-2 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--series-1)]"
               style={{ borderColor: "var(--border)" }}>
+              <Building2 size={14} />
               Manage companies
             </Link>
             <Link href="/admin"
-              className="rounded-md border px-4 py-2 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--series-1)]"
               style={{ borderColor: "var(--border)" }}>
+              <Settings size={14} />
               Manage users
             </Link>
           </div>
@@ -310,9 +346,9 @@ function AdminDashboard() {
         </div>
 
         {/* Recent top leads */}
-        <div className="rounded-lg border" style={{ borderColor: "var(--border)" }}>
+        <div className="surface-card overflow-hidden">
           <div className="border-b px-4 py-3 text-sm font-semibold"
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+            style={{ borderColor: "var(--border)" }}>
             Top leads (most recent scoring)
           </div>
           <table className="w-full text-sm">
@@ -327,7 +363,7 @@ function AdminDashboard() {
             <tbody>
               {isLoading && <SkeletonRows rows={5} cols={4} />}
               {!isLoading && leads.map((lead) => (
-                <tr key={lead.company_id} className="border-b last:border-0" style={{ borderColor: "var(--gridline)" }}>
+                <tr key={lead.company_id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
                   <td className="px-4 py-3 font-medium">
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
