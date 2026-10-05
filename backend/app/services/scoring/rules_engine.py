@@ -6,48 +6,22 @@ from sqlalchemy.orm import Session
 
 from app.models.company import Company
 from app.models.crm_deal import CRMDeal
-from app.models.enums import ServiceLine, SignalDirection
+from app.models.enums import SignalDirection
 from app.models.lead_score import LeadScore
 from app.models.nlp_feature import NLPFeature
 from app.models.raw_document import RawDocument
 from app.models.signal import Signal
+from app.services import tenancy
 
 MODEL_VERSION = "rules_v1"
 
-# Configurable ICP weight tables — point-based and transparent, per
-# 01_TECHNICAL_ARCHITECTURE.md §2.4 ("V1 cold-start: rules-based scorer, no
-# model training required"). Tune these as real historical win/loss data
-# comes in via crm_deals.
-INDUSTRY_ICP_WEIGHTS: dict[str, float] = {
-    "saas": 100.0,
-    "information technology": 95.0,
-    "it services": 95.0,
-    "fintech": 90.0,
-    "financial services": 85.0,
-    "e-commerce": 80.0,
-    "education": 70.0,
-    "healthcare": 65.0,
-    "manufacturing": 60.0,
-    "retail": 55.0,
-}
+# Per-tenant ICP weight tables now live on Organization.icp_config, with
+# app.services.tenancy.DEFAULT_*_WEIGHTS (the original Cloud Counselage
+# tuning) as the fallback. These three constants are just the "missing key"
+# default score used when a company's industry/band isn't in whatever
+# weight table applies — tenant override or the hardcoded default.
 _DEFAULT_INDUSTRY_SCORE = 50.0
-
-EMPLOYEE_BAND_ICP_WEIGHTS: dict[str, float] = {
-    "51-200": 100.0,  # strongest historical ICP segment
-    "11-50": 80.0,
-    "201-1000": 70.0,
-    "1000+": 45.0,
-    "1-10": 40.0,
-}
 _DEFAULT_EMPLOYEE_BAND_SCORE = 50.0
-
-REVENUE_BAND_ICP_WEIGHTS: dict[str, float] = {
-    "10cr-50cr": 100.0,
-    "50cr-250cr": 85.0,
-    "1cr-10cr": 70.0,
-    "250cr+": 55.0,
-    "<1cr": 35.0,
-}
 _DEFAULT_REVENUE_SCORE = 50.0
 
 JOB_POSTING_LOOKBACK_DAYS = 14
@@ -115,30 +89,30 @@ class ScoringResult:
     evidence: list[str] = field(default_factory=list)
 
 
-def _industry_score(industry: str | None) -> tuple[float, ScoreFactor | None]:
+def _industry_score(industry: str | None, weights: dict[str, float]) -> tuple[float, ScoreFactor | None]:
     if not industry:
         return _DEFAULT_INDUSTRY_SCORE, None
-    score = INDUSTRY_ICP_WEIGHTS.get(industry.strip().lower(), _DEFAULT_INDUSTRY_SCORE)
+    score = weights.get(industry.strip().lower(), _DEFAULT_INDUSTRY_SCORE)
     factor = None
     if score >= 85:
         factor = ScoreFactor(f"Industry '{industry}' is a strong ICP fit", round(score / 100 * 0.3, 2))
     return score, factor
 
 
-def _employee_band_score(band: str | None) -> tuple[float, ScoreFactor | None]:
+def _employee_band_score(band: str | None, weights: dict[str, float]) -> tuple[float, ScoreFactor | None]:
     if not band:
         return _DEFAULT_EMPLOYEE_BAND_SCORE, None
-    score = EMPLOYEE_BAND_ICP_WEIGHTS.get(band, _DEFAULT_EMPLOYEE_BAND_SCORE)
+    score = weights.get(band, _DEFAULT_EMPLOYEE_BAND_SCORE)
     factor = None
     if score >= 90:
         factor = ScoreFactor(f"Employee band {band} matches strongest historical ICP segment", 0.28)
     return score, factor
 
 
-def _revenue_score(band: str | None) -> float:
+def _revenue_score(band: str | None, weights: dict[str, float]) -> float:
     if not band:
         return _DEFAULT_REVENUE_SCORE
-    return REVENUE_BAND_ICP_WEIGHTS.get(band, _DEFAULT_REVENUE_SCORE)
+    return weights.get(band, _DEFAULT_REVENUE_SCORE)
 
 
 def _location_score(country: str | None) -> float:
@@ -146,9 +120,10 @@ def _location_score(country: str | None) -> float:
 
 
 def _fit_score(company: Company) -> tuple[float, list[ScoreFactor]]:
-    industry_score, industry_factor = _industry_score(company.industry)
-    band_score, band_factor = _employee_band_score(company.employee_count_band)
-    revenue_score = _revenue_score(company.revenue_band)
+    weights = tenancy.get_icp_weights(company)
+    industry_score, industry_factor = _industry_score(company.industry, weights["industry_weights"])
+    band_score, band_factor = _employee_band_score(company.employee_count_band, weights["employee_band_weights"])
+    revenue_score = _revenue_score(company.revenue_band, weights["revenue_band_weights"])
     location_score = _location_score(company.location_country)
 
     fit = 0.35 * industry_score + 0.35 * band_score + 0.20 * revenue_score + 0.10 * location_score
@@ -227,9 +202,10 @@ def _intent_score(
         avg_confidence = sum(float(f.confidence or 0) for f in nlp_features) / len(nlp_features)
         nlp_points = avg_confidence * 20.0
 
-        branding_docs = any(f.predicted_need_category == ServiceLine.BRANDING.value for f in nlp_features)
-        if not branding_docs:
-            factors.append(ScoreFactor("No recent branding-related content on company site", -0.10))
+        service_keys = {key for key, _ in tenancy.get_service_offerings(company)}
+        has_matching_content = any(f.predicted_need_category in service_keys for f in nlp_features)
+        if not has_matching_content:
+            factors.append(ScoreFactor("No recent content matching any declared service line", -0.10))
     else:
         factors.append(ScoreFactor("No NLP-derived signal yet — enrichment pending or thin", -0.10))
 
@@ -401,17 +377,18 @@ def _opportunity_score(
 
 
 def _recommend_service(
-    nlp_features: list,
+    nlp_features: list, service_keys: list[str]
 ) -> tuple[str | None, float | None, dict[str, float]]:
     """Return the top recommended service, its confidence, and probabilities for
-    all four service lines (normalised to sum to 100 %).
+    every service the company's organization offers (normalised to sum to 100 %).
 
     Per requirement §3.8: the system must output multi-service probabilities,
     e.g. "80 % probability of requiring recruitment services AND 65 % probability
-    of requiring corporate learning services."
+    of requiring corporate learning services." service_keys comes from the
+    organization's own service_offerings catalog (see app.services.tenancy),
+    not a fixed list — this is what makes the recommendation tenant-agnostic.
     """
-    all_services = [v.value for v in ServiceLine]
-    votes: dict[str, list[float]] = {svc: [] for svc in all_services}
+    votes: dict[str, list[float]] = {svc: [] for svc in service_keys}
 
     for feature in nlp_features:
         if feature.predicted_need_category and feature.predicted_need_category in votes:
@@ -424,7 +401,7 @@ def _recommend_service(
 
     # Weighted vote share normalised to 0-100 %
     service_probabilities: dict[str, float] = {
-        svc: round(sum(votes[svc]) / total_weight * 100, 2) for svc in all_services
+        svc: round(sum(votes[svc]) / total_weight * 100, 2) for svc in service_keys
     }
 
     best_category = max(service_probabilities, key=lambda k: service_probabilities[k])
@@ -469,7 +446,10 @@ def score_company(db: Session, company: Company) -> ScoringResult:
         fit_score, intent_score, engagement_score, now, signals
     )
     conversion_probability = round((fit_score + intent_score) / 2, 2)
-    recommended_service, recommendation_confidence, service_probabilities = _recommend_service(nlp_features)
+    service_keys = [key for key, _ in tenancy.get_service_offerings(company)]
+    recommended_service, recommendation_confidence, service_probabilities = _recommend_service(
+        nlp_features, service_keys
+    )
 
     top_factors = sorted(
         fit_factors + intent_factors + engagement_factors + opportunity_factors,

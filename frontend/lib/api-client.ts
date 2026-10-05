@@ -66,6 +66,59 @@ export function login(email: string, password: string): Promise<LoginResponse> {
   return request<LoginResponse>("/api/auth/login", { method: "POST", body: { email, password } });
 }
 
+// ---- Organizations (multi-tenant onboarding) ----
+
+export interface ServiceOfferingInput {
+  key: string;
+  label: string;
+  description?: string;
+}
+
+export interface OrganizationSignupRequest {
+  organization_name: string;
+  industry?: string;
+  employee_count_band?: string;
+  website?: string;
+  admin_full_name: string;
+  admin_email: string;
+  admin_password: string;
+  service_offerings: ServiceOfferingInput[];
+}
+
+export interface OrganizationSignupResponse {
+  access_token: string;
+  token_type: string;
+  role: "bd_executive" | "manager" | "admin";
+  organization: {
+    id: string;
+    name: string;
+    industry: string | null;
+    employee_count_band: string | null;
+    website: string | null;
+    service_offerings: { id: string; key: string; label: string; description: string | null; is_active: boolean }[];
+  };
+}
+
+export function signupOrganization(payload: OrganizationSignupRequest): Promise<OrganizationSignupResponse> {
+  return request<OrganizationSignupResponse>("/api/organizations/signup", { method: "POST", body: payload });
+}
+
+export interface CompanyDiscoverRequest {
+  industries?: string[];
+  employee_count_bands?: string[];
+  revenue_bands?: string[];
+  max_results?: number;
+}
+
+export interface CompanyDiscoverResponse {
+  discovered: number;
+  company_ids: string[];
+}
+
+export function discoverCompanies(token: string, payload: CompanyDiscoverRequest): Promise<CompanyDiscoverResponse> {
+  return request<CompanyDiscoverResponse>("/api/companies/discover", { method: "POST", token, body: payload });
+}
+
 // ---- Companies ----
 
 export interface Company {

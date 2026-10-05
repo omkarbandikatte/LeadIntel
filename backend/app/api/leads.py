@@ -45,10 +45,11 @@ def _latest_score_subquery(db: Session):
     )
 
 
-def _get_latest_score_or_404(db: Session, company_id: uuid.UUID) -> LeadScore:
+def _get_latest_score_or_404(db: Session, company_id: uuid.UUID, organization_id: uuid.UUID | None) -> LeadScore:
     lead_score = (
         db.query(LeadScore)
-        .filter(LeadScore.company_id == company_id)
+        .join(Company, Company.id == LeadScore.company_id)
+        .filter(LeadScore.company_id == company_id, Company.organization_id == organization_id)
         .order_by(LeadScore.scored_at.desc())
         .first()
     )
@@ -71,7 +72,7 @@ def list_leads(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> LeadListResponse:
     latest = _latest_score_subquery(db)
 
@@ -82,6 +83,7 @@ def list_leads(
             latest,
             (LeadScore.company_id == latest.c.company_id) & (LeadScore.scored_at == latest.c.max_scored_at),
         )
+        .filter(Company.organization_id == current_user.organization_id)
     )
 
     if min_score is not None:
@@ -140,9 +142,9 @@ def list_leads(
 def get_lead_explanation(
     company_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> LeadExplanationResponse:
-    lead_score = _get_latest_score_or_404(db, company_id)
+    lead_score = _get_latest_score_or_404(db, company_id, current_user.organization_id)
 
     top_factors = [TopFactor(**factor) for factor in (lead_score.top_factors or [])]
 
@@ -229,7 +231,7 @@ def submit_lead_feedback(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_role),
 ) -> Feedback:
-    lead_score = _get_latest_score_or_404(db, company_id)
+    lead_score = _get_latest_score_or_404(db, company_id, current_user.organization_id)
 
     feedback = Feedback(
         lead_score_id=lead_score.id,

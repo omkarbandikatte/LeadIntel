@@ -23,6 +23,7 @@ from app.schemas.company import (
     EnrichTriggerResponse,
     RawDocumentResponse,
 )
+from app.schemas.organization import CompanyDiscoverRequest, CompanyDiscoverResponse
 from app.schemas.signal import SignalListResponse, SignalResponse
 from app.worker import enrich_company_task
 
@@ -30,8 +31,12 @@ router = APIRouter(prefix="/api/companies", tags=["companies"])
 logger = logging.getLogger(__name__)
 
 
-def _get_company_or_404(db: Session, company_id: uuid.UUID) -> Company:
-    company = db.get(Company, company_id)
+def _get_company_or_404(db: Session, company_id: uuid.UUID, organization_id: uuid.UUID | None) -> Company:
+    company = (
+        db.query(Company)
+        .filter(Company.id == company_id, Company.organization_id == organization_id)
+        .first()
+    )
     if company is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -46,9 +51,9 @@ def list_companies(
     page_size: int = 25,
     search: str | None = None,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> CompanyListResponse:
-    q = db.query(Company)
+    q = db.query(Company).filter(Company.organization_id == current_user.organization_id)
     if search:
         q = q.filter(Company.name.ilike(f"%{search}%"))
     total = q.count()
@@ -60,9 +65,14 @@ def list_companies(
 def create_company(
     payload: CompanyCreateRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> Company:
-    company = Company(name=payload.name, website=payload.website, industry=payload.industry)
+    company = Company(
+        name=payload.name,
+        website=payload.website,
+        industry=payload.industry,
+        organization_id=current_user.organization_id,
+    )
     db.add(company)
     db.commit()
     db.refresh(company)
@@ -77,7 +87,7 @@ def create_company(
 def bulk_upload_companies(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> BulkUploadResponse:
     raw = file.file.read().decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(raw))
@@ -96,6 +106,7 @@ def bulk_upload_companies(
             name=name,
             website=(row.get("website") or "").strip() or None,
             industry=(row.get("industry") or "").strip() or None,
+            organization_id=current_user.organization_id,
         )
         db.add(company)
         companies.append(company)
@@ -114,9 +125,9 @@ def bulk_upload_companies(
 def get_company(
     company_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> Company:
-    company = _get_company_or_404(db, company_id)
+    company = _get_company_or_404(db, company_id, current_user.organization_id)
     company.latest_nlp_features = sorted(company.nlp_features, key=lambda f: f.processed_at, reverse=True)[
         :10
     ]
@@ -129,9 +140,9 @@ def get_company(
 def trigger_enrichment(
     company_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> EnrichTriggerResponse:
-    company = _get_company_or_404(db, company_id)
+    company = _get_company_or_404(db, company_id, current_user.organization_id)
     company.enrichment_status = EnrichmentStatus.PENDING.value
     db.add(company)
     db.commit()
@@ -145,9 +156,9 @@ def trigger_enrichment(
 def list_company_documents(
     company_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> list[RawDocument]:
-    _get_company_or_404(db, company_id)
+    _get_company_or_404(db, company_id, current_user.organization_id)
     return (
         db.query(RawDocument)
         .filter(RawDocument.company_id == company_id)
@@ -160,13 +171,13 @@ def list_company_documents(
 def list_company_signals(
     company_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: User = Depends(require_any_role),
+    current_user: User = Depends(require_any_role),
 ) -> SignalListResponse:
     """Business Signal Engine timeline — every typed, directional signal detected
     for this company (hiring, expansion, funding, technology adoption, leadership
     change, layoffs, hiring freeze), newest first.
     """
-    _get_company_or_404(db, company_id)
+    _get_company_or_404(db, company_id, current_user.organization_id)
     signals = (
         db.query(Signal)
         .filter(Signal.company_id == company_id)
@@ -188,3 +199,72 @@ def list_company_signals(
             for s in signals
         ],
     )
+
+
+@router.post("/discover", response_model=CompanyDiscoverResponse, status_code=status.HTTP_202_ACCEPTED)
+def discover_companies(
+    payload: CompanyDiscoverRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_role),
+) -> CompanyDiscoverResponse:
+    """ICP-based lead discovery: "give us your company info, we'll find leads."
+
+    The candidate pool is every distinct company profile already known to the
+    platform (added/enriched by any organization that has used LeadIntel) —
+    this is the realistic implementation of cross-tenant discovery without a
+    paid third-party data provider: as more organizations onboard and add
+    real companies, the shared directory of company profiles (name/industry/
+    size/revenue/location — no scores, deals, or other tenants' proprietary
+    data) grows, and every new organization benefits from it immediately.
+    Each match is imported as the caller's OWN company row and independently
+    enriched + scored against the caller's own service catalog and ICP —
+    nothing about another organization's scoring, deals, or NLP results is
+    ever shared.
+    """
+    directory_query = db.query(Company).filter(Company.organization_id != current_user.organization_id)
+    if payload.industries:
+        directory_query = directory_query.filter(Company.industry.in_(payload.industries))
+    if payload.employee_count_bands:
+        directory_query = directory_query.filter(Company.employee_count_band.in_(payload.employee_count_bands))
+    if payload.revenue_bands:
+        directory_query = directory_query.filter(Company.revenue_band.in_(payload.revenue_bands))
+
+    existing_names = {
+        name
+        for (name,) in db.query(Company.name).filter(Company.organization_id == current_user.organization_id).all()
+    }
+
+    seen_names: set[str] = set()
+    created: list[Company] = []
+    for candidate in directory_query.order_by(Company.created_at.desc()).limit(payload.max_results * 5):
+        if len(created) >= payload.max_results:
+            break
+        if candidate.name in existing_names or candidate.name in seen_names:
+            continue
+        seen_names.add(candidate.name)
+
+        new_company = Company(
+            organization_id=current_user.organization_id,
+            name=candidate.name,
+            website=candidate.website,
+            industry=candidate.industry,
+            employee_count_band=candidate.employee_count_band,
+            revenue_band=candidate.revenue_band,
+            location_city=candidate.location_city,
+            location_state=candidate.location_state,
+            location_country=candidate.location_country,
+            source="discovered",
+        )
+        db.add(new_company)
+        created.append(new_company)
+
+    db.commit()
+    for company in created:
+        db.refresh(company)
+        try:
+            enrich_company_task.delay(str(company.id))
+        except Exception:
+            logger.exception("Could not queue enrichment for discovered company %s", company.id)
+
+    return CompanyDiscoverResponse(discovered=len(created), company_ids=[c.id for c in created])
+

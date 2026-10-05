@@ -14,6 +14,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     role: str
+    organization_id: uuid.UUID | None = None
 
 
 class RegisterRequest(BaseModel):
@@ -29,6 +30,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    organization_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 

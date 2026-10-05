@@ -74,12 +74,20 @@ def load_training_data() -> pd.DataFrame:
        (most fixture companies lost), which made the median split degenerate
        back to all-positive — the opposite failure of step 2.
 
-    The fix that's robust to both populations: try the simple, standard
-    majority-vote threshold (win_rate >= 0.5) first — it works correctly as
-    long as the data contains genuine negative examples (true of the fixture
-    data, and of any realistic CRM history). Only fall back to a median split
-    if that still collapses to one class (true only of the Kaggle-only data,
-    which structurally has no company below a 50% win rate).
+    4. (2026-10-06 EDA finding, see ml/training/eda_scoring_dataset.py) Step
+       3's *global* majority-vote threshold (win_rate >= 0.5) quietly
+       reintroduced step 2's exact bug for the real Kaggle cohort specifically:
+       since every one of the 85 Kaggle companies' win rate already sits in
+       [0.53, 0.75], the global 0.5 cutoff labels **100% of them positive**
+       regardless of their win rate *relative to each other* — the model
+       never sees a single real negative example, so real-company label
+       variance is zero (confirmed: per-source correlation of every feature
+       with label is NaN for the Kaggle cohort, i.e. zero variance). All of
+       the model's actual learned signal comes from the synthetic fixture
+       rows; the real rows just dilute the training set with noise.
+       Fix: apply the majority-vote/median-fallback logic *per source cohort*
+       instead of globally, so each population (real vs. synthetic, or any
+       future data source) is labeled relative to its own distribution.
     """
     db = SessionLocal()
     try:
@@ -96,13 +104,27 @@ def load_training_data() -> pd.DataFrame:
             for company_id, deals in deals_by_company.items()
         }
 
-        labels = {cid: (1 if rate >= 0.5 else 0) for cid, rate in win_rates.items()}
-        if len(set(labels.values())) < 2:
-            median_win_rate = float(np.median(list(win_rates.values()))) if win_rates else 0.5
-            labels = {cid: (1 if rate >= median_win_rate else 0) for cid, rate in win_rates.items()}
+        cohorts: dict[str, list] = {}
+        for company_id, deals in deals_by_company.items():
+            cohorts.setdefault(deals[0].company.source or "unknown", []).append(company_id)
+
+        labels: dict = {}
+        for cohort_ids in cohorts.values():
+            cohort_rates = {cid: win_rates[cid] for cid in cohort_ids}
+            cohort_labels = {cid: (1 if rate >= 0.5 else 0) for cid, rate in cohort_rates.items()}
+            if len(set(cohort_labels.values())) < 2:
+                median_win_rate = float(np.median(list(cohort_rates.values())))
+                cohort_labels = {cid: (1 if rate >= median_win_rate else 0) for cid, rate in cohort_rates.items()}
+            labels.update(cohort_labels)
 
         rows: list[dict] = []
-        for company_id, deals in deals_by_company.items():
+        # Sorted by company_id — the unordered CRMDeal query above can return
+        # rows in a different physical scan order after any DB write (UPDATE/
+        # VACUUM/etc.), which silently changes train_test_split's partition
+        # even with a fixed random_state (it shuffles *positions*, not
+        # company identities) — without this, reported metrics aren't
+        # reproducible run-to-run despite RANDOM_STATE being fixed.
+        for company_id, deals in sorted(deals_by_company.items(), key=lambda item: str(item[0])):
             company = deals[0].company
             rules_result = score_company(db, company)
             feature_vector = build_feature_vector(db, company, rules_result)

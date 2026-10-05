@@ -11,6 +11,7 @@ interface AuthState {
   role: Role | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  setSession: (token: string, role: Role) => void;
   logout: () => void;
 }
 
@@ -39,6 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(response.role);
   }
 
+  function setSession(newToken: string, newRole: Role) {
+    window.localStorage.setItem(TOKEN_KEY, newToken);
+    window.localStorage.setItem(ROLE_KEY, newRole);
+    setToken(newToken);
+    setRole(newRole);
+  }
+
   function logout() {
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(ROLE_KEY);
@@ -48,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, role, isLoading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ token, role, isLoading, login, setSession, logout }}>{children}</AuthContext.Provider>
   );
 }
 

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, Date, DateTime, Index, String, text
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,6 +29,11 @@ class Company(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
     )
+    # Nullable for backward compatibility with pre-multi-tenant rows/tests —
+    # new companies (created or discovered via the API) always set this.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE")
+    )
     name: Mapped[str] = mapped_column(String(500), nullable=False)
     website: Mapped[str | None] = mapped_column(String(500))
     industry: Mapped[str | None] = mapped_column(String(255))
@@ -45,6 +50,7 @@ class Company(Base):
         DateTime(timezone=True), server_default=text("now()"), onupdate=text("now()")
     )
 
+    organization = relationship("Organization", back_populates="companies")
     raw_documents = relationship("RawDocument", back_populates="company", cascade="all, delete-orphan")
     nlp_features = relationship("NLPFeature", back_populates="company", cascade="all, delete-orphan")
     signals = relationship(

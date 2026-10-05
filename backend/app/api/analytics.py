@@ -25,6 +25,7 @@ from app.schemas.analytics import (
     ServicePerformance,
     TeamAnalyticsResponse,
 )
+from app.services import tenancy
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -35,8 +36,14 @@ _SCORE_BANDS: list[tuple[str, float, float]] = [
 ]
 
 
-def _latest_score_by_company(db: Session) -> dict[uuid.UUID, LeadScore]:
-    scores = db.query(LeadScore).order_by(LeadScore.company_id, LeadScore.scored_at.desc()).all()
+def _latest_score_by_company(db: Session, organization_id: uuid.UUID | None) -> dict[uuid.UUID, LeadScore]:
+    scores = (
+        db.query(LeadScore)
+        .join(Company, Company.id == LeadScore.company_id)
+        .filter(Company.organization_id == organization_id)
+        .order_by(LeadScore.company_id, LeadScore.scored_at.desc())
+        .all()
+    )
     latest: dict[uuid.UUID, LeadScore] = {}
     for score in scores:
         if score.company_id is not None and score.company_id not in latest:
@@ -44,20 +51,42 @@ def _latest_score_by_company(db: Session) -> dict[uuid.UUID, LeadScore]:
     return latest
 
 
+def _organization_service_lines(db: Session, current_user: User) -> list[str]:
+    from app.models.organization import ServiceOffering
+
+    if current_user.organization_id is not None:
+        keys = [
+            key
+            for (key,) in db.query(ServiceOffering.key)
+            .filter(
+                ServiceOffering.organization_id == current_user.organization_id,
+                ServiceOffering.is_active.is_(True),
+            )
+            .all()
+        ]
+        if keys:
+            return keys
+    return [key for key, _ in tenancy.DEFAULT_SERVICE_OFFERINGS]
+
+
 @router.get("/team", response_model=TeamAnalyticsResponse)
 def get_team_analytics(
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_admin),
+    current_user: User = Depends(require_manager_or_admin),
 ) -> TeamAnalyticsResponse:
     """Manager analytics view per 03_API_SPECIFICATION.md.
 
     Every figure here is computed live from lead_scores/crm_deals — there is
     no synthetic or hardcoded reporting data.
     """
-    latest_scores = _latest_score_by_company(db)
+    latest_scores = _latest_score_by_company(db, current_user.organization_id)
     total_leads_scored = len(latest_scores)
 
-    closed_deals = db.query(CRMDeal).filter(CRMDeal.outcome.in_(["won", "lost"])).all()
+    closed_deals = (
+        db.query(CRMDeal)
+        .filter(CRMDeal.outcome.in_(["won", "lost"]), CRMDeal.organization_id == current_user.organization_id)
+        .all()
+    )
     deals_by_company: dict[uuid.UUID, list[CRMDeal]] = defaultdict(list)
     for deal in closed_deals:
         if deal.company_id:
@@ -198,13 +227,24 @@ def get_extended_analytics(
     ]
 
     # ── feedback summary ─────────────────────────────────────────────────
-    all_feedback = db.query(Feedback).all()
+    all_feedback = (
+        db.query(Feedback)
+        .join(LeadScore, LeadScore.id == Feedback.lead_score_id)
+        .join(Company, Company.id == LeadScore.company_id)
+        .filter(Company.organization_id == org_id)
+        .all()
+    )
     accurate = sum(1 for f in all_feedback if f.is_accurate)
     feedback_summary = FeedbackSummary(accurate=accurate, inaccurate=len(all_feedback) - accurate)
 
     # ── scoring activity last 14 days ────────────────────────────────────
     cutoff = datetime.now(UTC) - timedelta(days=14)
-    recent_scores = db.query(LeadScore).filter(LeadScore.scored_at >= cutoff).all()
+    recent_scores = (
+        db.query(LeadScore)
+        .join(Company, Company.id == LeadScore.company_id)
+        .filter(LeadScore.scored_at >= cutoff, Company.organization_id == org_id)
+        .all()
+    )
     activity_by_day: dict[str, int] = defaultdict(int)
     for s in recent_scores:
         day = s.scored_at.strftime("%m/%d")

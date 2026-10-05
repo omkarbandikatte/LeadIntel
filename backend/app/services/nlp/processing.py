@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.nlp_feature import NLPFeature
 from app.models.raw_document import RawDocument
 from app.models.signal import Signal
+from app.services import tenancy
 from app.services.nlp.entity_extraction import extract_entities
 from app.services.nlp.need_classifier import classify_need
 from app.services.nlp.signal_detection import detect_signals
@@ -54,7 +55,8 @@ def process_document(db: Session, document: RawDocument) -> NLPFeature | None:
 
     try:
         entities = extract_entities(document.raw_text)
-        category, confidence = classify_need(document.raw_text)
+        candidate_offerings = tenancy.get_service_offerings(document.company)
+        category, confidence = classify_need(document.raw_text, candidate_offerings)
     except Exception:
         logger.exception("NLP processing failed for document %s", document.id)
         return None
@@ -62,7 +64,7 @@ def process_document(db: Session, document: RawDocument) -> NLPFeature | None:
     feature = NLPFeature(
         company_id=document.company_id,
         raw_document_id=document.id,
-        predicted_need_category=category.value,
+        predicted_need_category=category,
         confidence=confidence,
         extracted_entities=entities,
     )
