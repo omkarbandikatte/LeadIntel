@@ -8,6 +8,10 @@ import { Eye, EyeOff, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api-client";
 import { BackButton } from "@/components/BackButton";
+import { Aurora } from "@/components/reactbits/Aurora";
+import { GradientText } from "@/components/reactbits/GradientText";
+import { CountUp } from "@/components/reactbits/CountUp";
+import { StarBorder } from "@/components/reactbits/StarBorder";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -33,25 +37,27 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: "var(--page-plane)" }}>
+    <div className="lp-dark flex min-h-screen" style={{ backgroundColor: "var(--page-plane)" }}>
 
       {/* ── Left panel — 60% ──────────────────────────────── */}
-      <div className="relative hidden lg:block" style={{ flex: "0 0 60%" }}>
+      <div className="relative hidden overflow-hidden lg:block" style={{ flex: "0 0 60%", backgroundColor: "var(--page-plane)" }}>
         <Image
           src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=1400&q=85"
           alt="Team collaborating"
           fill
-          className="object-cover"
           priority
+          className="object-cover opacity-60 mix-blend-luminosity"
         />
-        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 opacity-70"><Aurora colors={["var(--series-1)", "var(--accent-l)", "var(--status-good)"]} speed={18} /></div>
+        <div className="lp-grid-overlay absolute inset-0" />
+        {/* Dark gradient overlay for text contrast */}
         <div className="absolute inset-0"
-          style={{ background: "linear-gradient(135deg, rgba(11,11,11,0.65) 0%, rgba(42,120,214,0.55) 100%)" }} />
+          style={{ background: "linear-gradient(135deg, rgba(7,8,10,0.45) 0%, rgba(7,8,10,0.92) 100%)" }} />
 
         {/* Content overlay */}
         <div className="absolute inset-0 flex flex-col justify-between p-12">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-lg font-bold text-white tracking-tight">
+          <Link href="/" className="flex items-center gap-2 font-display text-lg font-bold text-white tracking-tight">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
               <Sparkles size={16} />
             </span>
@@ -60,8 +66,11 @@ export default function LoginPage() {
 
           {/* Quote / tagline */}
           <div>
-            <blockquote className="text-2xl font-semibold leading-snug text-white">
-              &quot;Know which company to pitch —<br />before your competitors do.&quot;
+            <blockquote className="font-display text-2xl font-semibold leading-snug text-white">
+              <GradientText colors={["#ffffff", "var(--accent-l)", "#ffffff"]} animationSpeed={6}>
+                Know which company to pitch —
+              </GradientText>
+              <br />before your competitors do.
             </blockquote>
             <p className="mt-4 text-sm text-white opacity-70">
               AI-powered B2B lead scoring for Cloud Counselage&apos;s BD team.
@@ -71,12 +80,14 @@ export default function LoginPage() {
             {/* Stats row */}
             <div className="mt-8 flex gap-8">
               {[
-                { v: "85+", l: "Companies tracked" },
-                { v: "6,700+", l: "Deals analysed" },
-                { v: "4", l: "Service lines ranked" },
-              ].map(({ v, l }) => (
+                { to: 85, suffix: "+", separator: "", l: "Companies tracked" },
+                { to: 6700, suffix: "+", separator: ",", l: "Deals analysed" },
+                { to: 4, suffix: "", separator: "", l: "Service lines ranked" },
+              ].map(({ to, suffix, separator, l }) => (
                 <div key={l}>
-                  <div className="text-2xl font-bold text-white">{v}</div>
+                  <div className="font-display text-2xl font-bold text-white">
+                    <CountUp to={to} suffix={suffix} separator={separator} duration={1.6} />
+                  </div>
                   <div className="text-xs text-white opacity-60 mt-0.5">{l}</div>
                 </div>
               ))}
@@ -97,13 +108,13 @@ export default function LoginPage() {
           >
             <Sparkles size={16} />
           </span>
-          <Link href="/" className="text-xl font-bold tracking-tight">LeadIntel</Link>
+          <Link href="/" className="font-display text-xl font-bold tracking-tight">LeadIntel</Link>
         </div>
 
         <div className="w-full max-w-sm">
           <div className="mb-8">
             <BackButton />
-            <h1 className="text-2xl font-bold tracking-tight">Sign in</h1>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Sign in</h1>
             <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
               B2B Lead Intelligence &amp; Conversion Prediction
             </p>
@@ -168,14 +179,16 @@ export default function LoginPage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.01] disabled:opacity-60"
-              style={{ backgroundColor: "var(--series-1)" }}
-            >
-              {isSubmitting ? "Signing in…" : "Sign in"}
-            </button>
+            <StarBorder color="var(--series-1)" speed="4s" className="w-full">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-xl px-3 py-2.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.01] disabled:opacity-60"
+                style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}
+              >
+                {isSubmitting ? "Signing in…" : "Sign in"}
+              </button>
+            </StarBorder>
           </form>
 
           <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>

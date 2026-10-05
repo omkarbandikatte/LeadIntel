@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { GradientText } from "@/components/reactbits/GradientText";
 
 type Role = "bd_executive" | "manager" | "admin";
 
@@ -54,7 +55,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <Sparkles size={16} strokeWidth={2.25} />
           </span>
           <span>
-            <span className="block text-base font-bold tracking-tight">LeadIntel</span>
+            <span className="block font-display text-base font-bold tracking-tight">
+              <GradientText animationSpeed={8}>LeadIntel</GradientText>
+            </span>
             <span className="block text-[11px]" style={{ color: "var(--text-muted)" }}>
               Account Intelligence
             </span>
@@ -78,12 +81,15 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                 key={link.href}
                 href={link.href}
                 onClick={onClose}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all"
+                className="relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-all hover:bg-[var(--surface-2)]"
                 style={{
                   color: isActive ? "var(--series-1)" : "var(--text-secondary)",
                   backgroundColor: isActive ? "var(--series-1-soft)" : "transparent",
                 }}
               >
+                {isActive && (
+                  <span className="absolute inset-y-1.5 left-0 w-1 rounded-full" style={{ backgroundColor: "var(--series-1)" }} />
+                )}
                 <Icon size={17} strokeWidth={2} style={{ opacity: isActive ? 1 : 0.75 }} />
                 {link.label}
               </Link>

@@ -15,6 +15,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { Skeleton } from "@/components/Skeleton";
+import { SpotlightCard } from "@/components/reactbits/SpotlightCard";
+import { GradientText } from "@/components/reactbits/GradientText";
 import { useAuth } from "@/lib/auth-context";
 import {
   listUsers,
@@ -74,7 +76,7 @@ function ModelReportSection() {
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             {Object.entries(report.candidates).map(([name, metrics]) => (
-              <div key={name} className="rounded-xl p-4" style={{ backgroundColor: "var(--surface-2)" }}>
+              <SpotlightCard key={name} className="rounded-xl p-4" spotlightColor="var(--series-1-soft)" style={{ backgroundColor: "var(--surface-2)" }}>
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-sm font-semibold">{name}</span>
                   <span
@@ -107,7 +109,7 @@ function ModelReportSection() {
                     </div>
                   </div>
                 )}
-              </div>
+              </SpotlightCard>
             ))}
           </div>
         </>
@@ -223,15 +225,17 @@ function AdminContent() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1500px]">
         <BackButton />
-        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">Admin Panel</h1>
+        <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+          <GradientText animationSpeed={8}>Admin Panel</GradientText>
+        </h1>
         <p className="mb-8 text-sm" style={{ color: "var(--text-secondary)" }}>
           User management, scoring controls, model evaluation, and CRM sync.
         </p>
 
         {/* ── Scoring ── */}
-        <section className="surface-card mb-8 p-5">
+        <SpotlightCard className="surface-card mb-8 p-5" spotlightColor="var(--series-1-soft)">
           <div className="mb-1 flex items-center gap-2">
             <Target size={16} style={{ color: "var(--series-1)" }} />
             <h2 className="text-base font-semibold">Scoring engine</h2>
@@ -268,13 +272,13 @@ function AdminContent() {
           {scoringError && (
             <p className="mt-3 text-sm" style={{ color: "var(--status-critical)" }}>{scoringError}</p>
           )}
-        </section>
+        </SpotlightCard>
 
         {/* ── Model evaluation (Precision@K / Lift@K) ── */}
         <ModelReportSection />
 
         {/* ── CRM Sync ── */}
-        <section className="surface-card mb-8 p-5">
+        <SpotlightCard className="surface-card mb-8 p-5" spotlightColor="var(--series-1-soft)">
           <div className="mb-1 flex items-center gap-2">
             <Database size={16} style={{ color: "var(--series-1)" }} />
             <h2 className="text-base font-semibold">CRM sync</h2>
@@ -315,7 +319,7 @@ function AdminContent() {
           {syncError && (
             <p className="mt-3 text-sm" style={{ color: "var(--status-critical)" }}>{syncError}</p>
           )}
-        </section>
+        </SpotlightCard>
 
         {/* ── Users ── */}
         <section>
@@ -323,8 +327,8 @@ function AdminContent() {
             <h2 className="text-base font-semibold">Users ({users.length})</h2>
             <button
               onClick={() => { setShowForm((v) => !v); setFormError(null); setFormSuccess(null); }}
-              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02]"
-              style={{ backgroundColor: "var(--series-1)" }}>
+              className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+              style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}>
               {showForm ? <X size={14} /> : <Plus size={14} />}
               {showForm ? "Cancel" : "Add user"}
             </button>
@@ -375,8 +379,8 @@ function AdminContent() {
               </div>
               {formError && <p className="mt-3 text-sm" style={{ color: "var(--status-critical)" }}>{formError}</p>}
               <button type="submit" disabled={isSubmitting}
-                className="mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: "var(--series-1)" }}>
+                className="mt-4 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
+                style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}>
                 {isSubmitting ? "Creating…" : "Create user"}
               </button>
             </form>
@@ -406,10 +410,11 @@ function AdminContent() {
                     <table className="w-full text-sm">
                       <tbody>
                         {byRole[roleKey].map((user) => (
-                          <tr key={user.id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
+                          <tr key={user.id} className="row-accent border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]"
+                            style={{ borderColor: "var(--gridline)", ["--row-accent" as string]: ROLE_COLOR[roleKey] }}>
                             <td className="px-4 py-3 font-medium">{user.full_name}</td>
                             <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{user.email}</td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3 text-right">
                               <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
                                 style={{
                                   backgroundColor: user.is_active ? "var(--status-good-soft)" : "var(--status-critical-soft)",

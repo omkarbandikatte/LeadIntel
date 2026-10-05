@@ -28,6 +28,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { Skeleton } from "@/components/Skeleton";
+import { GradientText } from "@/components/reactbits/GradientText";
+import { SpotlightCard } from "@/components/reactbits/SpotlightCard";
 import { useAuth } from "@/lib/auth-context";
 import {
   ApiError,
@@ -157,7 +159,7 @@ function CompanyDetailContent() {
   if (isLoading || !company) {
     return (
       <AppShell>
-        <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+        <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1600px]">
           <BackButton />
           <div className="mb-6 flex items-start justify-between">
             <div className="flex-1">
@@ -184,7 +186,7 @@ function CompanyDetailContent() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1600px]">
         <BackButton />
 
         {/* ── Header ── */}
@@ -197,7 +199,9 @@ function CompanyDetailContent() {
               <Building2 size={20} />
             </span>
             <div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{company.name}</h1>
+              <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+                <GradientText animationSpeed={8}>{company.name}</GradientText>
+              </h1>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm" style={{ color: "var(--text-secondary)" }}>
                 {company.industry && <span>{company.industry}</span>}
                 {(company.location_city || company.location_country) && (
@@ -231,44 +235,45 @@ function CompanyDetailContent() {
           <>
             {/* ── Hero stat grid: Opportunity Score + supporting scores ── */}
             <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div
-                className="surface-card animate-scale-in p-5 lg:col-span-1"
-                style={{ background: "linear-gradient(145deg, var(--series-1-soft), var(--surface-1))" }}
+              <SpotlightCard
+                className="animate-scale-in rounded-lg border p-5 lg:col-span-1"
+                spotlightColor="var(--series-1-soft)"
+                style={{ borderColor: "var(--border)", background: "linear-gradient(145deg, var(--series-1-soft), var(--surface-1))" }}
               >
                 <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--series-1)" }}>
                   <Sparkles size={13} />
                   Opportunity Score
                 </div>
-                <div className="text-3xl font-bold" style={{ color: "var(--series-1)" }}>
+                <div className="font-display text-3xl font-bold" style={{ color: "var(--series-1)" }}>
                   {opportunityScore !== null ? opportunityScore.toFixed(0) : "—"}
                 </div>
                 <div className="mt-2">
                   <TrendBadge trend={explanation.intent_trend} />
                 </div>
-              </div>
-              <div className="surface-card animate-scale-in delay-75 p-5">
+              </SpotlightCard>
+              <SpotlightCard className="animate-scale-in delay-75 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                   Conversion probability
                 </div>
-                <div className="text-2xl font-bold">{explanation.conversion_probability.toFixed(1)}%</div>
-              </div>
-              <div className="surface-card animate-scale-in delay-150 p-5">
+                <div className="font-display text-2xl font-bold">{explanation.conversion_probability.toFixed(1)}%</div>
+              </SpotlightCard>
+              <SpotlightCard className="animate-scale-in delay-150 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                   Fit score
                 </div>
-                <div className="text-2xl font-bold">{explanation.fit_score?.toFixed(0) ?? "—"}</div>
-              </div>
-              <div className="surface-card animate-scale-in delay-225 p-5">
+                <div className="font-display text-2xl font-bold">{explanation.fit_score?.toFixed(0) ?? "—"}</div>
+              </SpotlightCard>
+              <SpotlightCard className="animate-scale-in delay-225 rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
                   Intent score
                 </div>
-                <div className="text-2xl font-bold">{explanation.intent_score?.toFixed(0) ?? "—"}</div>
-              </div>
+                <div className="font-display text-2xl font-bold">{explanation.intent_score?.toFixed(0) ?? "—"}</div>
+              </SpotlightCard>
             </div>
 
             {/* ── Why this company / Why now / What to offer ── */}
             <div className="mb-6 grid gap-4 lg:grid-cols-3">
-              <div className="surface-card p-5">
+              <SpotlightCard className="rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--series-1)" }}>
                   <Target size={16} />
                   Why this company
@@ -276,8 +281,8 @@ function CompanyDetailContent() {
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {explanation.why_this_company ?? "Not enough signal yet to explain this recommendation."}
                 </p>
-              </div>
-              <div className="surface-card p-5">
+              </SpotlightCard>
+              <SpotlightCard className="rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--accent-2)" }}>
                   <Clock size={16} />
                   Why now
@@ -285,8 +290,8 @@ function CompanyDetailContent() {
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {explanation.why_now ?? "No recent business signal detected in the last 45 days."}
                 </p>
-              </div>
-              <div className="surface-card p-5">
+              </SpotlightCard>
+              <SpotlightCard className="rounded-lg border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
                 <div className="mb-2 flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--status-good)" }}>
                   <Lightbulb size={16} />
                   What to offer
@@ -294,7 +299,7 @@ function CompanyDetailContent() {
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {explanation.what_to_offer ?? "Not enough NLP signal yet to recommend a service line."}
                 </p>
-              </div>
+              </SpotlightCard>
             </div>
 
             {/* ── Service probabilities + top factors ── */}

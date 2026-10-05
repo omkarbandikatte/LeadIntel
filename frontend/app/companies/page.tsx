@@ -6,6 +6,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { SkeletonRows } from "@/components/Skeleton";
+import { GradientText } from "@/components/reactbits/GradientText";
 import { useAuth } from "@/lib/auth-context";
 import { listCompanies, createCompany, bulkUploadCompanies, type Company, type BulkUploadResponse } from "@/lib/api-client";
 
@@ -108,11 +109,13 @@ function CompaniesContent() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="max-w-7xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1800px]">
         <BackButton />
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Companies</h1>
+            <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+              <GradientText animationSpeed={8}>Companies</GradientText>
+            </h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
               All tracked companies and their enrichment status.
             </p>
@@ -128,8 +131,8 @@ function CompaniesContent() {
               </button>
               <button
                 onClick={() => { setShowForm(false); setShowBulkUpload((v) => !v); setBulkResult(null); }}
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02]"
-                style={{ backgroundColor: "var(--series-1)" }}>
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+                style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}>
                 <Upload size={14} />
                 {showBulkUpload ? "Cancel" : "Bulk upload CSV"}
               </button>
@@ -154,8 +157,8 @@ function CompaniesContent() {
               <button
                 onClick={handleBulkUpload}
                 disabled={!bulkFile || isBulkUploading}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-                style={{ backgroundColor: "var(--series-1)" }}>
+                className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
+                style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}>
                 {isBulkUploading ? "Uploading…" : "Upload"}
               </button>
             </div>
@@ -202,15 +205,15 @@ function CompaniesContent() {
             </div>
             {formError && <p className="mt-2 text-sm" style={{ color: "var(--status-critical)" }}>{formError}</p>}
             <button type="submit" disabled={isSubmitting}
-              className="mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              style={{ backgroundColor: "var(--series-1)" }}>
+              className="mt-4 rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-60"
+              style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}>
               {isSubmitting ? "Adding…" : "Add company"}
             </button>
           </form>
         )}
 
         {/* Search */}
-        <div className="surface-card mb-4 inline-flex w-full max-w-sm items-center gap-2 px-3 py-2">
+        <div className="glass-toolbar mb-4 inline-flex w-full max-w-sm items-center gap-2 rounded-full px-4 py-2">
           <Search size={15} style={{ color: "var(--text-muted)" }} />
           <input
             placeholder="Search by name…"
@@ -228,7 +231,7 @@ function CompaniesContent() {
                 <th className="px-4 py-3 font-medium">Company</th>
                 <th className="px-4 py-3 font-medium">Industry</th>
                 <th className="px-4 py-3 font-medium">Location</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 text-center font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Added</th>
               </tr>
             </thead>
@@ -240,7 +243,8 @@ function CompaniesContent() {
               {!isLoading && results.map((company) => {
                 const status = STATUS_COLOR[company.enrichment_status] ?? STATUS_COLOR.pending;
                 return (
-                  <tr key={company.id} className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]" style={{ borderColor: "var(--gridline)" }}>
+                  <tr key={company.id} className="row-accent border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]"
+                    style={{ borderColor: "var(--gridline)", ["--row-accent" as string]: status.color }}>
                     <td className="px-4 py-3 font-medium">
                       <div className="flex items-center gap-2">
                         <span
@@ -260,7 +264,7 @@ function CompaniesContent() {
                     <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
                       {[company.location_city, company.location_country].filter(Boolean).join(", ") || "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize"
                         style={{ backgroundColor: status.soft, color: status.color }}>
                         {company.enrichment_status}
@@ -281,10 +285,10 @@ function CompaniesContent() {
             <span>Page {page} of {totalPages} · {total} companies</span>
             <div className="flex gap-2">
               <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                className="pill-btn border px-4 py-1.5 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}>Previous</button>
               <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-                className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                className="pill-btn border px-4 py-1.5 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}>Next</button>
             </div>
           </div>

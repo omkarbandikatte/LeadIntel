@@ -14,6 +14,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-inter)", "ui-sans-serif", "sans-serif"],
+        accent: ["var(--font-accent)", "var(--font-display)", "ui-sans-serif", "sans-serif"],
       },
       borderRadius: {
         sm: "var(--radius-sm)",

@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { SkeletonRows } from "@/components/Skeleton";
+import { GradientText } from "@/components/reactbits/GradientText";
 import { useAuth } from "@/lib/auth-context";
 import { listLeads, triggerScoring, type LeadFilters, type LeadListResponse } from "@/lib/api-client";
 
@@ -100,11 +101,13 @@ function LeadsPageContent() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="max-w-7xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1800px]">
         <BackButton />
         <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">{header.title}</h1>
+            <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+              <GradientText animationSpeed={8}>{header.title}</GradientText>
+            </h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{header.sub}</p>
           </div>
           {role === "admin" && (
@@ -119,8 +122,8 @@ function LeadsPageContent() {
               </button>
               <Link
                 href="/companies"
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-[1.02]"
-                style={{ backgroundColor: "var(--series-1)" }}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
+                style={{ backgroundColor: "var(--series-1)", color: "var(--on-accent)" }}
               >
                 <Plus size={14} />
                 Add company
@@ -132,24 +135,24 @@ function LeadsPageContent() {
           <p className="mb-4 text-sm" style={{ color: "var(--text-secondary)" }}>{scoringMsg}</p>
         )}
 
-        <div className="surface-card mb-6 flex flex-wrap gap-3 p-4">
+        <div className="glass-toolbar mb-6 flex flex-wrap gap-3 p-4">
           <div className="relative">
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-muted)" }} />
             <input
               placeholder="Industry"
-              className="rounded-lg border py-1.5 pl-8 pr-3 text-sm"
+              className="rounded-full border py-1.5 pl-8 pr-3 text-sm"
               style={inputStyle}
               onChange={(event) => updateFilter("industry", event.target.value || undefined)}
             />
           </div>
           <input
             placeholder="Region"
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            className="rounded-full border px-3 py-1.5 text-sm"
             style={inputStyle}
             onChange={(event) => updateFilter("region", event.target.value || undefined)}
           />
           <select
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            className="rounded-full border px-3 py-1.5 text-sm"
             style={inputStyle}
             onChange={(event) => updateFilter("recommended_service", event.target.value || undefined)}
             defaultValue=""
@@ -162,7 +165,7 @@ function LeadsPageContent() {
             ))}
           </select>
           <select
-            className="rounded-lg border px-3 py-1.5 text-sm"
+            className="rounded-full border px-3 py-1.5 text-sm"
             style={inputStyle}
             value={filters.sort}
             onChange={(event) => updateFilter("sort", event.target.value as LeadFilters["sort"])}
@@ -186,9 +189,9 @@ function LeadsPageContent() {
                 <th className="px-4 py-3 font-medium">Company</th>
                 <th className="px-4 py-3 font-medium">Industry</th>
                 <th className="px-4 py-3 font-medium">Location</th>
-                <th className="px-4 py-3 font-medium">Conversion</th>
-                <th className="px-4 py-3 font-medium">Opportunity</th>
-                <th className="px-4 py-3 font-medium">Trend</th>
+                <th className="px-4 py-3 text-center font-medium">Conversion</th>
+                <th className="px-4 py-3 text-center font-medium">Opportunity</th>
+                <th className="px-4 py-3 text-center font-medium">Trend</th>
                 <th className="px-4 py-3 font-medium">Recommended</th>
                 <th className="px-4 py-3 font-medium">Last scored</th>
               </tr>
@@ -206,11 +209,15 @@ function LeadsPageContent() {
                 data?.results.map((lead) => (
                   <tr
                     key={lead.company_id}
-                    className="border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]"
-                    style={{ borderColor: "var(--gridline)" }}
+                    className="row-accent border-b transition-colors last:border-0 hover:bg-[var(--surface-2)]"
+                    style={{ borderColor: "var(--gridline)", ["--row-accent" as string]: scoreColor(lead.conversion_probability) }}
                   >
                     <td className="px-4 py-3 font-medium">
-                      <Link href={`/companies/${lead.company_id}`} className="hover:underline">
+                      <Link href={`/companies/${lead.company_id}`} className="flex items-center gap-2 hover:underline">
+                        <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
+                          style={{ backgroundColor: "var(--series-1-soft)", color: "var(--series-1)" }}>
+                          {lead.company_name.charAt(0).toUpperCase()}
+                        </span>
                         {lead.company_name}
                       </Link>
                     </td>
@@ -220,13 +227,20 @@ function LeadsPageContent() {
                     <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
                       {lead.location ?? "—"}
                     </td>
-                    <td className="px-4 py-3 font-semibold" style={{ color: scoreColor(lead.conversion_probability) }}>
-                      {lead.conversion_probability.toFixed(1)}
-                    </td>
                     <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="font-semibold" style={{ color: scoreColor(lead.conversion_probability) }}>
+                          {lead.conversion_probability.toFixed(1)}
+                        </span>
+                        <span className="h-1 w-12 overflow-hidden rounded-full" style={{ backgroundColor: "var(--gridline)" }}>
+                          <span className="block h-full rounded-full" style={{ width: `${lead.conversion_probability}%`, backgroundColor: scoreColor(lead.conversion_probability) }} />
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
                       {lead.opportunity_score !== null ? <ScoreChip score={lead.opportunity_score} /> : "—"}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       <TrendIcon trend={lead.intent_trend} />
                     </td>
                     <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
@@ -250,7 +264,7 @@ function LeadsPageContent() {
               <button
                 disabled={data.page <= 1}
                 onClick={() => updateFilter("page", data.page - 1)}
-                className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                className="pill-btn border px-4 py-1.5 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}
               >
                 Previous
@@ -258,7 +272,7 @@ function LeadsPageContent() {
               <button
                 disabled={data.page >= totalPages}
                 onClick={() => updateFilter("page", data.page + 1)}
-                className="rounded-lg border px-3 py-1 disabled:opacity-40"
+                className="pill-btn border px-4 py-1.5 disabled:opacity-40"
                 style={{ borderColor: "var(--border)" }}
               >
                 Next

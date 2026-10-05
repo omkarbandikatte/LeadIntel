@@ -8,7 +8,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: "var(--page-plane)" }}>
+    <div className="relative flex min-h-screen" style={{ backgroundColor: "var(--page-plane)" }}>
+      <div className="app-ambient-bg" aria-hidden />
 
       {/* ── Desktop sidebar (lg+) — always visible in normal flow ── */}
       <div className="hidden lg:block flex-shrink-0">

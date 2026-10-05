@@ -14,6 +14,9 @@ import {
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import { SkeletonCard, SkeletonRows } from "@/components/Skeleton";
+import { CountUp } from "@/components/reactbits/CountUp";
+import { SpotlightCard } from "@/components/reactbits/SpotlightCard";
+import { GradientText } from "@/components/reactbits/GradientText";
 import { useAuth } from "@/lib/auth-context";
 import {
   listLeads,
@@ -61,10 +64,12 @@ function StatCard({
   icon?: React.ElementType;
 }) {
   return (
-    <div className="surface-card animate-scale-in p-5">
+    <SpotlightCard className="surface-card animate-scale-in p-5" spotlightColor="var(--series-1-soft)">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-3xl font-bold">{value}</div>
+          <div className="font-display text-3xl font-bold">
+            {typeof value === "number" ? <CountUp to={value} duration={1.2} /> : value}
+          </div>
           <div className="mt-1 text-sm font-medium">{label}</div>
           {sub && <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{sub}</div>}
         </div>
@@ -77,7 +82,7 @@ function StatCard({
           </span>
         )}
       </div>
-    </div>
+    </SpotlightCard>
   );
 }
 
@@ -103,8 +108,10 @@ function BdDashboard() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">My Pipeline</h1>
+      <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1600px]">
+        <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+          <GradientText animationSpeed={8}>My Pipeline</GradientText>
+        </h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           Your top leads to focus on today, ranked by conversion probability.
         </p>
@@ -126,7 +133,7 @@ function BdDashboard() {
               <tr className="border-b text-left" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
                 <th className="px-4 py-3 font-medium">Company</th>
                 <th className="px-4 py-3 font-medium">Industry</th>
-                <th className="px-4 py-3 font-medium">Score</th>
+                <th className="px-4 py-3 text-center font-medium">Score</th>
                 <th className="px-4 py-3 font-medium">Recommended service</th>
               </tr>
             </thead>
@@ -138,7 +145,7 @@ function BdDashboard() {
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
                   <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{lead.industry ?? "—"}</td>
-                  <td className="px-4 py-3"><ScoreChip score={lead.conversion_probability} /></td>
+                  <td className="px-4 py-3 text-center"><ScoreChip score={lead.conversion_probability} /></td>
                   <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
                     {lead.recommended_service ? (SERVICE_LABELS[lead.recommended_service] ?? lead.recommended_service) : "—"}
                   </td>
@@ -183,8 +190,10 @@ function ManagerDashboard() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">Team Overview</h1>
+      <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1600px]">
+        <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+          <GradientText animationSpeed={8}>Team Overview</GradientText>
+        </h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           Pipeline health and model performance across your team.
         </p>
@@ -227,7 +236,7 @@ function ManagerDashboard() {
               <tr className="border-b text-left" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
                 <th className="px-4 py-3 font-medium">Company</th>
                 <th className="px-4 py-3 font-medium">Industry</th>
-                <th className="px-4 py-3 font-medium">Score</th>
+                <th className="px-4 py-3 text-center font-medium">Score</th>
                 <th className="px-4 py-3 font-medium">Last scored</th>
               </tr>
             </thead>
@@ -239,7 +248,7 @@ function ManagerDashboard() {
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
                   <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{lead.industry ?? "—"}</td>
-                  <td className="px-4 py-3"><ScoreChip score={lead.conversion_probability} /></td>
+                  <td className="px-4 py-3 text-center"><ScoreChip score={lead.conversion_probability} /></td>
                   <td className="px-4 py-3" style={{ color: "var(--text-muted)" }}>
                     {new Date(lead.last_scored_at).toLocaleDateString()}
                   </td>
@@ -295,8 +304,10 @@ function AdminDashboard() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-        <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">System Dashboard</h1>
+      <main className="max-w-6xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1600px]">
+        <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+          <GradientText animationSpeed={8}>System Dashboard</GradientText>
+        </h1>
         <p className="mb-6 text-sm" style={{ color: "var(--text-secondary)" }}>
           System health, quick actions, and recent pipeline activity.
         </p>
@@ -356,7 +367,7 @@ function AdminDashboard() {
               <tr className="border-b text-left" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
                 <th className="px-4 py-3 font-medium">Company</th>
                 <th className="px-4 py-3 font-medium">Industry</th>
-                <th className="px-4 py-3 font-medium">Score</th>
+                <th className="px-4 py-3 text-center font-medium">Score</th>
                 <th className="px-4 py-3 font-medium">Recommended</th>
               </tr>
             </thead>
@@ -368,7 +379,7 @@ function AdminDashboard() {
                     <Link href={`/companies/${lead.company_id}`} className="hover:underline">{lead.company_name}</Link>
                   </td>
                   <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>{lead.industry ?? "—"}</td>
-                  <td className="px-4 py-3"><ScoreChip score={lead.conversion_probability} /></td>
+                  <td className="px-4 py-3 text-center"><ScoreChip score={lead.conversion_probability} /></td>
                   <td className="px-4 py-3" style={{ color: "var(--text-secondary)" }}>
                     {lead.recommended_service ? (SERVICE_LABELS[lead.recommended_service] ?? lead.recommended_service) : "—"}
                   </td>
