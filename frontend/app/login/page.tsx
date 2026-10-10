@@ -192,8 +192,10 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-            Don&apos;t have an account?{" "}
-            <span style={{ color: "var(--text-secondary)" }}>Contact your admin to create one.</span>
+            New company?{" "}
+            <Link href="/signup" className="font-medium" style={{ color: "var(--series-1)" }}>
+              Set up your own lead intelligence workspace
+            </Link>
           </p>
         </div>
       </div>

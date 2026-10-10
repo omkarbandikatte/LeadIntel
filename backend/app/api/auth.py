@@ -25,16 +25,17 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
         )
 
     token = create_access_token(subject=user.id, role=user.role)
-    return LoginResponse(access_token=token, role=user.role)
+    return LoginResponse(access_token=token, role=user.role, organization_id=user.organization_id)
 
 
 @router.post(
     "/register",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin)],
 )
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
+def register(
+    payload: RegisterRequest, db: Session = Depends(get_db), current_admin: User = Depends(require_admin)
+) -> User:
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing is not None:
         raise HTTPException(
@@ -52,6 +53,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
         full_name=payload.full_name,
         hashed_password=hash_password(payload.password),
         role=payload.role.value,
+        organization_id=current_admin.organization_id,
     )
     db.add(user)
     db.commit()
@@ -59,7 +61,12 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
     return user
 
 
-@router.get("/users", response_model=UserListResponse, dependencies=[Depends(require_admin)])
-def list_users(db: Session = Depends(get_db)) -> UserListResponse:
-    users = db.query(User).order_by(User.role, User.email).all()
+@router.get("/users", response_model=UserListResponse)
+def list_users(db: Session = Depends(get_db), current_admin: User = Depends(require_admin)) -> UserListResponse:
+    users = (
+        db.query(User)
+        .filter(User.organization_id == current_admin.organization_id)
+        .order_by(User.role, User.email)
+        .all()
+    )
     return UserListResponse(total=len(users), results=users)

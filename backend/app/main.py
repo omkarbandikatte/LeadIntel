@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import analytics, auth, companies, crm_sync, leads, scoring
+from app.api import analytics, auth, companies, crm_sync, leads, organizations, scoring
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -58,6 +58,7 @@ def health_check() -> dict[str, str]:
 
 
 app.include_router(auth.router)
+app.include_router(organizations.router)
 app.include_router(companies.router)
 app.include_router(leads.router)
 app.include_router(scoring.router)

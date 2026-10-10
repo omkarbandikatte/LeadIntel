@@ -4,6 +4,7 @@ from app.models.crm_sync_log import CRMSyncLog
 from app.models.feedback import Feedback
 from app.models.lead_score import LeadScore
 from app.models.nlp_feature import NLPFeature
+from app.models.organization import Organization, ServiceOffering
 from app.models.raw_document import RawDocument
 from app.models.signal import Signal
 from app.models.user import User
@@ -15,7 +16,9 @@ __all__ = [
     "Feedback",
     "LeadScore",
     "NLPFeature",
+    "Organization",
     "RawDocument",
+    "ServiceOffering",
     "Signal",
     "User",
 ]

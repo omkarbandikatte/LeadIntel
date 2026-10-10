@@ -11,10 +11,8 @@ from app.db.base_class import Base
 class NLPFeature(Base):
     __tablename__ = "nlp_features"
     __table_args__ = (
-        CheckConstraint(
-            "predicted_need_category IN ('branding', 'hiring', 'learning_development', 'iac_partnership')",
-            name="nlp_features_predicted_need_category_check",
-        ),
+        # predicted_need_category is free-form: each organization classifies
+        # against its own service_offerings catalog, not a fixed 4-value list.
         Index("idx_nlp_features_company", "company_id"),
     )
 

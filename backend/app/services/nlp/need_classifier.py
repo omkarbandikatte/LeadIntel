@@ -1,19 +1,8 @@
 from functools import lru_cache
 
 from app.core.config import get_settings
-from app.models.enums import ServiceLine
 
 settings = get_settings()
-
-# Natural-language phrasing per category, fed to the zero-shot model as
-# candidate labels — mapped back to the ServiceLine enum values that
-# 02_DATABASE_SCHEMA.sql's nlp_features.predicted_need_category expects.
-_CANDIDATE_LABELS: dict[ServiceLine, str] = {
-    ServiceLine.BRANDING: "branding, marketing, or public image",
-    ServiceLine.HIRING: "hiring, recruitment, or workforce expansion",
-    ServiceLine.LEARNING_DEVELOPMENT: "employee learning, training, or upskilling",
-    ServiceLine.IAC_PARTNERSHIP: "IT infrastructure, cloud, or technology partnership",
-}
 
 
 @lru_cache(maxsize=1)
@@ -32,20 +21,26 @@ def _get_classifier():
     return pipeline("zero-shot-classification", model=settings.NEED_CLASSIFIER_HF_MODEL, device="cpu")
 
 
-def classify_need(text: str) -> tuple[ServiceLine, float]:
-    """Classify scraped text into one of the four service-line need categories.
+def classify_need(text: str, candidate_offerings: list[tuple[str, str]]) -> tuple[str, float]:
+    """Classify scraped text into one of an organization's own service-offering
+    categories.
 
     Per 01_TECHNICAL_ARCHITECTURE.md §2.2 / 05_FREE_STACK_DECISIONS.md §3: a
     locally-run, open-weight Hugging Face model — zero-shot classification
     avoids the need for a labeled fine-tuning set before this is useful, and
     nothing here calls a paid LLM API.
+
+    candidate_offerings is (key, description) pairs from the calling
+    company's organization's service_offerings (see app.services.tenancy) —
+    this is what makes classification tenant-agnostic instead of hardcoded to
+    Cloud Counselage's 4 service lines: any organization's own catalog is fed
+    in as the zero-shot candidate labels.
     """
     classifier = _get_classifier()
-    candidate_labels = list(_CANDIDATE_LABELS.values())
-    result = classifier(text[:2000], candidate_labels=candidate_labels)
+    label_to_key = {description: key for key, description in candidate_offerings}
+    result = classifier(text[:2000], candidate_labels=list(label_to_key.keys()))
 
     top_label = result["labels"][0]
     top_score = float(result["scores"][0])
 
-    category = next(line for line, label in _CANDIDATE_LABELS.items() if label == top_label)
-    return category, top_score
+    return label_to_key[top_label], top_score

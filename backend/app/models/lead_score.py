@@ -11,10 +11,8 @@ from app.db.base_class import Base
 class LeadScore(Base):
     __tablename__ = "lead_scores"
     __table_args__ = (
-        CheckConstraint(
-            "recommended_service IN ('branding', 'hiring', 'learning_development', 'iac_partnership')",
-            name="lead_scores_recommended_service_check",
-        ),
+        # recommended_service is free-form, per the owning company's
+        # organization-specific service_offerings catalog.
         Index("idx_lead_scores_company", "company_id"),
         Index("idx_lead_scores_probability", text("conversion_probability DESC")),
     )

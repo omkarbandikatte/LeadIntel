@@ -11,10 +11,9 @@ from app.db.base_class import Base
 class CRMDeal(Base):
     __tablename__ = "crm_deals"
     __table_args__ = (
-        CheckConstraint(
-            "service_line IN ('branding', 'hiring', 'learning_development', 'iac_partnership')",
-            name="crm_deals_service_line_check",
-        ),
+        # service_line is no longer constrained to a fixed 4-value list —
+        # each organization defines its own service_offerings catalog, so the
+        # valid set of keys is tenant-specific and enforced at the app layer.
         CheckConstraint("outcome IN ('won', 'lost', 'open')", name="crm_deals_outcome_check"),
         Index("idx_crm_deals_company", "company_id"),
         Index("idx_crm_deals_outcome", "outcome"),
@@ -22,6 +21,11 @@ class CRMDeal(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()")
+    )
+    # Direct org FK kept alongside company_id (which can be nulled on delete)
+    # so a deal's tenant ownership survives its company being removed.
+    organization_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE")
     )
     company_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL")
