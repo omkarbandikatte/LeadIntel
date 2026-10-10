@@ -42,3 +42,20 @@ class SyncStatus(str, enum.Enum):
     SUCCESS = "success"
     FAILED = "failed"
     PARTIAL = "partial"
+
+
+class SignalType(str, enum.Enum):
+    """Structured business-signal taxonomy for the Signal Engine."""
+
+    HIRING = "hiring"
+    EXPANSION = "expansion"
+    FUNDING = "funding"
+    TECHNOLOGY_ADOPTION = "technology_adoption"
+    LEADERSHIP_CHANGE = "leadership_change"
+    LAYOFFS = "layoffs"
+    HIRING_FREEZE = "hiring_freeze"
+
+
+class SignalDirection(str, enum.Enum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"

@@ -48,41 +48,96 @@ RANDOM_STATE = 42
 
 
 def load_training_data() -> pd.DataFrame:
-    """Build one training row per closed CRM deal.
+    """Build one training row per company, labelled by majority deal outcome
+    (win_rate >= 0.5), falling back to a median split only if that collapses
+    to a single class.
 
-    Each deal is an independent training example. Multiple deals per company
-    are included — the feature vector reflects the company's attributes at
-    scoring time, so the model learns which company profiles have higher win
-    rates across all historical deals, not just the first deal per company.
-    With the Kaggle dataset this yields ~6,700 rows vs 85 from de-duplication.
+    IMPORTANT — three iterations of debugging landed on this approach (2026-10-04):
+
+    1. The original version emitted one row per *deal* (~6,700 rows with the
+       Kaggle dataset). Verified empirically that all 85 companies in the
+       loaded Kaggle CRM data have BOTH won and lost deals, so every company
+       contributed contradictory labels against an *identical* company-level
+       feature vector (features don't vary per-deal) — unlearnable. Trained
+       to ROC AUC ~0.50 (coin-flip) on both logreg_v2 and xgb_v2.
+
+    2. One row per company with an absolute majority-vote label (win_rate >=
+       0.5) also failed on the Kaggle-only data: every one of those 85
+       companies' per-company win rate falls in [0.53, 0.75] (clusters around
+       a ~63% global rate, nothing below 50%), so the absolute threshold
+       produced a single-class target and sklearn refused to fit.
+
+    3. A population-median split fixed that, but turned out to be fragile to
+       dataset composition: once the (single-deal-per-company, genuinely
+       binary 0%/100%) synthetic fixture data was mixed in alongside the
+       noisy-but-real Kaggle companies, the combined median landed on 0.0
+       (most fixture companies lost), which made the median split degenerate
+       back to all-positive — the opposite failure of step 2.
+
+    The fix that's robust to both populations: try the simple, standard
+    majority-vote threshold (win_rate >= 0.5) first — it works correctly as
+    long as the data contains genuine negative examples (true of the fixture
+    data, and of any realistic CRM history). Only fall back to a median split
+    if that still collapses to one class (true only of the Kaggle-only data,
+    which structurally has no company below a 50% win rate).
     """
     db = SessionLocal()
     try:
         closed_deals = db.query(CRMDeal).filter(CRMDeal.outcome.in_(["won", "lost"])).all()
 
-        rows: list[dict] = []
-        # Cache feature vectors per company_id — company attributes don't
-        # change between deals so we avoid recomputing for every deal.
-        feature_cache: dict = {}
+        deals_by_company: dict = {}
         for deal in closed_deals:
-            if deal.company_id is None:
+            if deal.company_id is None or deal.company is None:
                 continue
+            deals_by_company.setdefault(deal.company_id, []).append(deal)
 
-            company = deal.company
-            if company is None:
-                continue
+        win_rates = {
+            company_id: sum(1 for d in deals if d.outcome == "won") / len(deals)
+            for company_id, deals in deals_by_company.items()
+        }
 
-            if deal.company_id not in feature_cache:
-                rules_result = score_company(db, company)
-                feature_cache[deal.company_id] = build_feature_vector(db, company, rules_result)
+        labels = {cid: (1 if rate >= 0.5 else 0) for cid, rate in win_rates.items()}
+        if len(set(labels.values())) < 2:
+            median_win_rate = float(np.median(list(win_rates.values()))) if win_rates else 0.5
+            labels = {cid: (1 if rate >= median_win_rate else 0) for cid, rate in win_rates.items()}
 
-            feature_vector = dict(feature_cache[deal.company_id])
-            feature_vector["label"] = 1 if deal.outcome == "won" else 0
+        rows: list[dict] = []
+        for company_id, deals in deals_by_company.items():
+            company = deals[0].company
+            rules_result = score_company(db, company)
+            feature_vector = build_feature_vector(db, company, rules_result)
+            feature_vector["label"] = labels[company_id]
             rows.append(feature_vector)
 
         return pd.DataFrame(rows)
     finally:
         db.close()
+
+
+def _ranking_metrics(y_test: pd.Series, probabilities: np.ndarray, k_values: tuple[int, ...] = (10, 20, 50)) -> dict:
+    """Precision@K and Lift@K — "if BD can only contact the top K leads, how
+    many of them are actually worth it?" per the roadmap's ML-evaluation ask.
+
+    Precision@K is threshold-independent ROC AUC's opposite number: it only
+    cares about the ranking of the top K, which is exactly how a BD team
+    actually consumes scored leads (a prioritized list, not a classifier
+    cutoff). Lift@K expresses that as a multiple of the random baseline.
+    """
+    y = np.asarray(y_test)
+    order = np.argsort(-probabilities)
+    y_sorted = y[order]
+    overall_rate = float(y.mean()) if len(y) else 0.0
+
+    metrics: dict[str, float] = {}
+    for k in k_values:
+        k_clamped = min(k, len(y_sorted))
+        if k_clamped == 0:
+            continue
+        precision_at_k = float(y_sorted[:k_clamped].mean())
+        lift_at_k = round(precision_at_k / overall_rate, 4) if overall_rate > 0 else 0.0
+        metrics[f"precision_at_{k}"] = round(precision_at_k, 4)
+        metrics[f"lift_at_{k}"] = lift_at_k
+    return metrics
 
 
 def _evaluate(model, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
@@ -94,6 +149,7 @@ def _evaluate(model, X_test: pd.DataFrame, y_test: pd.Series) -> dict:
         "recall": round(recall_score(y_test, predictions, zero_division=0), 4),
         "f1_score": round(f1_score(y_test, predictions, zero_division=0), 4),
         "roc_auc": round(roc_auc_score(y_test, probabilities), 4),
+        "ranking_metrics": _ranking_metrics(y_test, probabilities),
     }
 
 

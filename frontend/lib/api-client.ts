@@ -125,16 +125,38 @@ export function getCompanyDocuments(token: string, companyId: string): Promise<R
   return request<RawDocument[]>(`/api/companies/${companyId}/documents`, { token });
 }
 
+// ---- Business Signal Engine ----
+
+export interface SignalItem {
+  id: string;
+  signal_type: string;
+  direction: "positive" | "negative";
+  confidence: number;
+  headline: string | null;
+  detected_at: string;
+}
+
+export interface SignalListResponse {
+  total: number;
+  results: SignalItem[];
+}
+
+export function getCompanySignals(token: string, companyId: string): Promise<SignalListResponse> {
+  return request<SignalListResponse>(`/api/companies/${companyId}/signals`, { token });
+}
+
 // ---- Leads ----
 
 export interface LeadListItem {
   company_id: string;
   company_name: string;
   conversion_probability: number;
+  opportunity_score: number | null;
   recommended_service: string | null;
   recommendation_confidence: number | null;
   industry: string | null;
   location: string | null;
+  intent_trend: "increasing" | "decreasing" | "stable" | null;
   last_scored_at: string;
 }
 
@@ -165,16 +187,31 @@ export interface TopFactor {
   weight: number;
 }
 
+export interface EvidenceItem {
+  signal_type: string;
+  direction: "positive" | "negative";
+  confidence: number;
+  headline: string | null;
+  detected_at: string;
+}
+
 export interface LeadExplanation {
   company_id: string;
   fit_score: number | null;
   intent_score: number | null;
   conversion_probability: number;
+  opportunity_score: number | null;
+  engagement_score: number | null;
+  intent_trend: "increasing" | "decreasing" | "stable" | null;
   top_factors: TopFactor[];
   recommended_service: string | null;
   recommendation_confidence: number | null;
   service_probabilities: Record<string, number> | null;
   model_version: string | null;
+  why_this_company: string | null;
+  why_now: string | null;
+  what_to_offer: string | null;
+  evidence: EvidenceItem[];
 }
 
 export function getLeadExplanation(token: string, companyId: string): Promise<LeadExplanation> {
@@ -349,4 +386,29 @@ export function triggerScoring(token: string, mode: "full" | "incremental"): Pro
 
 export function runScoring(token: string, mode: "incremental" | "full") {
   return request("/api/scoring/run", { method: "POST", token, body: { mode } });
+}
+
+// ---- Model report (Precision@K / Lift@K) ----
+
+export interface ModelCandidateMetrics {
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1_score: number;
+  roc_auc: number;
+  ranking_metrics: Record<string, number>;
+}
+
+export interface ModelReport {
+  trained_at: string;
+  training_rows: number;
+  selected_model: string;
+  model_version: string;
+  best_params: Record<string, unknown>;
+  candidates: Record<string, ModelCandidateMetrics>;
+  feature_importance: Record<string, number> | null;
+}
+
+export function getModelReport(token: string): Promise<ModelReport | null> {
+  return request<ModelReport | null>("/api/scoring/model-report", { token });
 }

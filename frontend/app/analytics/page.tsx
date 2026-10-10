@@ -7,6 +7,9 @@ import { AppShell } from "@/components/AppShell";
 import { BackButton } from "@/components/BackButton";
 import { Skeleton } from "@/components/Skeleton";
 import { FadeIn } from "@/components/FadeIn";
+import { CountUp } from "@/components/reactbits/CountUp";
+import { SpotlightCard } from "@/components/reactbits/SpotlightCard";
+import { GradientText } from "@/components/reactbits/GradientText";
 import { useAuth } from "@/lib/auth-context";
 import { getExtendedAnalytics, type ExtendedAnalytics } from "@/lib/api-client";
 
@@ -35,11 +38,13 @@ const SERVICE_LABELS: Record<string, string> = {
 
 function KpiCard({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
-    <div className="rounded-xl border p-5" style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
-      <div className="text-3xl font-bold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>{value}</div>
+    <SpotlightCard className="surface-card p-5" spotlightColor="var(--series-1-soft)">
+      <div className="font-display text-3xl font-bold tabular-nums" style={{ color: accent ?? "var(--text-primary)" }}>
+        {typeof value === "number" ? <CountUp to={value} duration={1.2} /> : value}
+      </div>
       <div className="mt-1 text-sm font-medium">{label}</div>
       {sub && <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{sub}</div>}
-    </div>
+    </SpotlightCard>
   );
 }
 
@@ -50,9 +55,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <FadeIn>
-      <div className={`rounded-xl border p-5 ${className}`} style={{ borderColor: "var(--border)", backgroundColor: "var(--surface-1)" }}>
+      <SpotlightCard className={`surface-card p-5 ${className}`} spotlightColor="var(--series-1-soft)">
         {children}
-      </div>
+      </SpotlightCard>
     </FadeIn>
   );
 }
@@ -74,7 +79,7 @@ function AnalyticsContent() {
   if (isLoading) {
     return (
       <AppShell>
-        <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <main className="max-w-7xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1800px]">
           <BackButton />
           {/* KPI strip skeleton */}
           <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -124,7 +129,7 @@ function AnalyticsContent() {
   if (errorMsg || !data) {
     return (
       <AppShell>
-        <main className="mx-auto max-w-6xl px-6 py-12 text-center" style={{ color: "var(--status-critical)" }}>{errorMsg ?? "No data."}</main>
+        <main className="max-w-7xl px-6 py-12 text-center 2xl:max-w-[1800px]" style={{ color: "var(--status-critical)" }}>{errorMsg ?? "No data."}</main>
       </AppShell>
     );
   }
@@ -143,10 +148,12 @@ function AnalyticsContent() {
 
   return (
     <AppShell>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main className="max-w-7xl px-4 py-6 sm:px-6 sm:py-8 2xl:max-w-[1800px]">
         <BackButton />
         <div className="mb-8">
-          <h1 className="mb-1 text-xl font-semibold sm:text-2xl">Analytics</h1>
+          <h1 className="mb-1 font-display text-xl font-bold tracking-tight sm:text-2xl">
+            <GradientText animationSpeed={8}>Analytics</GradientText>
+          </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Pipeline performance, model accuracy, and lead intelligence — live from the database.</p>
         </div>
 
