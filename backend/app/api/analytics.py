@@ -136,12 +136,13 @@ def get_team_analytics(
 @router.get("/extended", response_model=ExtendedAnalyticsResponse)
 def get_extended_analytics(
     db: Session = Depends(get_db),
-    _: User = Depends(require_manager_or_admin),
+    current_user: User = Depends(require_manager_or_admin),
 ) -> ExtendedAnalyticsResponse:
     """Rich analytics payload used by the full Analytics page."""
+    org_id = current_user.organization_id
 
     # ── latest score per company ─────────────────────────────────────────
-    latest_scores = _latest_score_by_company(db)
+    latest_scores = _latest_score_by_company(db, org_id)
     total_leads_scored = len(latest_scores)
     avg_prob = (
         round(sum(float(s.conversion_probability) for s in latest_scores.values()) / total_leads_scored, 2)
@@ -149,7 +150,7 @@ def get_extended_analytics(
     )
 
     # ── enrichment breakdown ─────────────────────────────────────────────
-    all_companies = db.query(Company).all()
+    all_companies = db.query(Company).filter(Company.organization_id == org_id).all()
     enrichment_counts: dict[str, int] = defaultdict(int)
     for c in all_companies:
         enrichment_counts[c.enrichment_status] += 1
@@ -160,13 +161,13 @@ def get_extended_analytics(
     )
 
     # ── service line performance ─────────────────────────────────────────
-    SERVICE_LINES = ["branding", "hiring", "learning_development", "iac_partnership"]
+    service_lines = _organization_service_lines(db, current_user)
     rec_counts: dict[str, int] = defaultdict(int)
     for s in latest_scores.values():
         if s.recommended_service:
             rec_counts[s.recommended_service] += 1
 
-    all_deals = db.query(CRMDeal).all()
+    all_deals = db.query(CRMDeal).filter(CRMDeal.organization_id == org_id).all()
     service_won: dict[str, int] = defaultdict(int)
     service_lost: dict[str, int] = defaultdict(int)
     for deal in all_deals:
@@ -182,7 +183,7 @@ def get_extended_analytics(
             won_count=service_won.get(svc, 0),
             lost_count=service_lost.get(svc, 0),
         )
-        for svc in SERVICE_LINES
+        for svc in service_lines
     ]
 
     # ── industry performance (top 8) ─────────────────────────────────────
@@ -310,4 +311,3 @@ def get_extended_analytics(
         score_band_performance=band_performance,
         model_accuracy_trend=model_accuracy_trend,
     )
-

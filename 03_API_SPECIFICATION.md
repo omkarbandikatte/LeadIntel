@@ -126,6 +126,20 @@ Returns the `crm_sync_log` table entries for audit/troubleshooting.
 
 ## Analytics (manager view)
 
+Both analytics endpoints require a manager or admin and report only the
+authenticated user's organization. Legacy users without an organization see
+only legacy records whose organization is null.
+
+### `GET /api/analytics/extended`
+Returns the Analytics page's live metrics: latest scores per company, average
+conversion probability, enrichment status counts, service and industry
+performance, deal pipeline and won value, score distribution, feedback summary,
+14-day scoring activity, score-band performance, and monthly model accuracy.
+Service performance uses the organization's active service offerings, falling
+back to the default four service lines when no active catalog is configured.
+Deal totals include organization-owned deals whose company has been deleted.
+An empty organization returns zero counts and empty trends rather than an error.
+
 ### `GET /api/analytics/team`
 ```json
 {
