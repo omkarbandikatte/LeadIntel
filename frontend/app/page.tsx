@@ -428,13 +428,13 @@ export default function LandingPage() {
       </section>
 
       {/* ── Team ────────────────────────────────────────── */}
-      <section id="team" className="relative mx-auto max-w-4xl overflow-hidden px-4 py-14 sm:px-6 sm:py-20">
+      <section id="team" className="relative mx-auto max-w-6xl overflow-hidden px-4 py-14 sm:px-6 sm:py-20">
         <DotGrid color="var(--accent-2)" className="z-0" />
         <div className="relative mb-9 text-center">
           <Badge>Project Team</Badge>
           <h2 className="mt-4 font-display text-2xl font-bold sm:text-3xl">Meet the team behind LeadIntel</h2>
         </div>
-        <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               name: "Omkar Pramod Bandikatte",
@@ -448,8 +448,19 @@ export default function LandingPage() {
               code: "D078",
               image: "/team/omkar-pramod-bandikatte.png",
             },
+            {
+              name: "Tanish Dadlani",
+              enrollment: "60009230009",
+              code: "D069",
+              image: "/team/tanish-dadlani.png",
+            },
           ].map(({ name, enrollment, code, image }, i) => (
-            <FadeIn key={name} delay={i * 120} direction={i === 0 ? "left" : "up"}>
+            <FadeIn
+              key={name}
+              delay={i * 120}
+              direction={i === 0 ? "left" : "up"}
+              className={i === 2 ? "sm:col-span-2 sm:mx-auto sm:w-[calc(50%-0.5rem)] lg:col-span-1 lg:mx-0 lg:w-auto" : ""}
+            >
               <TiltedCard maxTilt={5} className="h-full">
                 <SpotlightCard
                   className="group flex h-full min-h-40 overflow-hidden rounded-xl border p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"

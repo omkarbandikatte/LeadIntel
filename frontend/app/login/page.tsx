@@ -128,6 +128,7 @@ export default function LoginPage() {
               <input
                 id="email"
                 type="email"
+                suppressHydrationWarning
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
